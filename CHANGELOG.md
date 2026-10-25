@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Automatic chat titles work again: the UI catalog never defined `chat.new_title`, so
+  `isDefaultTitle()` compared against `undefined` and always failed — the provisional
+  40-character title was never set, titling was never scheduled, and chats kept the
+  "新しいチャット"/"New chat" title.
+
+### Changed
+
+- Automatic titling runs as soon as the first reply finishes instead of after 5 seconds of idle,
+  and the in-flight title request is cancelled when a new message is sent, so it never competes
+  with prompts for OVMS's single inference slot. Chats still on the default title are titled when
+  they are opened.
+
 ## [1.14.0] - 2026-10-24
 
 ### Changed

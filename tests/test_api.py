@@ -21,7 +21,9 @@ def reset_config() -> None:
 def test_static_ui_is_served():
     assert client.get("/").status_code == 200
     assert "Intel AI Studio" in client.get("/").text
-    assert "chat.new_title" in client.get("/i18n.js").text
+    # the key must be defined (not just referenced by isDefaultTitle), or the
+    # frontend never recognizes the default chat title
+    assert '"chat.new_title":' in client.get("/i18n.js").text
     assert "applyI18n" in client.get("/app.js").text
     assert "renderMarkdown" in client.get("/markdown.js").text
 

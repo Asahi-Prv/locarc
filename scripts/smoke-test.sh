@@ -42,7 +42,7 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
       echo "Static UI check failed" >&2
       exit 1
     fi
-    if ! curl -fsS "http://127.0.0.1:$PORT/i18n.js" | grep -q "chat.new_title"; then
+    if ! curl -fsS "http://127.0.0.1:$PORT/i18n.js" | grep -q '"chat.new_title":'; then
       echo "Bundled i18n.js check failed" >&2
       exit 1
     fi

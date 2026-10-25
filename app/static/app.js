@@ -27,7 +27,7 @@ const state = {
   _statusSig: "",           // last rendered server status (skip DOM work when unchanged)
   _modelSelectSig: "",
   _taskEls: new Map(),      // task id -> cached DOM refs
-  _titleTimer: null,        // pending auto-title generation
+  _titleAbort: null,        // AbortController while a title is being generated
   _tokenizerTask: null,     // running tokenizer conversion {id, model}
   _ldQuant: null,           // quant/cw of the model in the load dialog {quant, cw}
   _hfStarting: new Set(),   // repos whose download POST is in flight
@@ -1215,8 +1215,7 @@ async function deleteChat(id) {
 
 async function openChat(id) {
   showView("chat");
-  clearTimeout(state._titleTimer);
-  state._titleTimer = null;
+  cancelPendingTitle();
   try {
     state.chat = await api(`/api/chats/${id}`);
   } catch (e) { toast(e.message, true); return; }
@@ -1224,13 +1223,13 @@ async function openChat(id) {
   setParamsSaveState("");
   renderChat();
   loadChatList(id);
+  maybeAutoTitle(state.chat);  // a chat closed before its title was generated gets one now
 }
 
 // New chat is lazy: nothing is created until the first prompt is sent.
 $("#btnNewChat").addEventListener("click", () => {
   showView("chat");
-  clearTimeout(state._titleTimer);
-  state._titleTimer = null;
+  cancelPendingTitle();
   state.chat = null;
   setParamsSaveState("");
   renderChat();
@@ -1480,8 +1479,7 @@ async function saveCurrentChat() {
 
 async function sendChat() {
   if (state.sending) return;
-  clearTimeout(state._titleTimer);  // never generate a title while the user is active
-  state._titleTimer = null;
+  cancelPendingTitle();  // free the single inference slot for the new prompt
   const st = state.status;
   if (!st.running || !st.ready) { toast(t("chat.no_model"), true); return; }
   const input = $("#pgInput");
@@ -1713,33 +1711,43 @@ async function streamAssistantReply(chat) {
     aEl.replaceWith(msgEl("assistant", answer, think || undefined, stats || undefined,
                           chat.messages.length - 1));
     saveCurrentChat();
-    if (!aborted && answer && chat._autoTitle) scheduleTitleGeneration(chat);
+    if (!aborted && answer && chat._autoTitle) generateChatTitle(chat);
   }
 }
 
-// Ask the loaded model for a short chat title, but only once the user pauses:
-// generating it immediately would occupy the single inference slot and make the
-// next prompt feel sluggish.
-const TITLE_IDLE_MS = 5000;
+// Ask the loaded model for a short chat title as soon as the first exchange is
+// complete. Title generation shares OVMS's single inference slot with the chat,
+// so the request is cancelled the moment the user sends something again (it is
+// retried after that reply); a pending title can never slow down a prompt.
 
-function scheduleTitleGeneration(chat) {
-  clearTimeout(state._titleTimer);
-  state._titleTimer = setTimeout(() => {
-    state._titleTimer = null;
-    if (state.sending) return;  // the user is busy again
-    generateChatTitle(chat);
-  }, TITLE_IDLE_MS);
+// Give a chat that still has the default title ("New chat"/"新しいチャット") one
+// now — for example one that was left before titling could run.
+function maybeAutoTitle(chat) {
+  if (!chat || !isDefaultTitle(chat.title)) return;
+  const hasUser = chat.messages.some(m => m.role === "user" && m.content);
+  const hasAnswer = chat.messages.some(m => m.role === "assistant" && m.content);
+  if (!hasUser || !hasAnswer) return;
+  chat._autoTitle = true;
+  generateChatTitle(chat);
+}
+
+function cancelPendingTitle() {
+  if (state._titleAbort) {
+    state._titleAbort.abort();
+    state._titleAbort = null;
+  }
 }
 
 async function generateChatTitle(chat, force = false) {
   if (!chat || (!chat._autoTitle && !force)) return false;
-  chat._autoTitle = false;
+  if (state._titleAbort) return false;  // one title request at a time
   const st = state.status;
-  if (!st.running || !st.ready) return false;
+  if (!st.running || !st.ready) return false;  // keep _autoTitle: retry when the model is back
   const firstUser = (chat.messages.find(m => m.role === "user") || {}).content || "";
   const firstAnswer = (chat.messages.find(m => m.role === "assistant") || {}).content || "";
   if (!firstUser || !firstAnswer) return false;
   const controller = new AbortController();
+  state._titleAbort = controller;
   const timer = setTimeout(() => controller.abort(), 60000);  // never tie up the model for long
   const payload = {
     model: st.model,
@@ -1770,22 +1778,28 @@ async function generateChatTitle(chat, force = false) {
     let title = await request({ chat_template_kwargs: { enable_thinking: false } }, 24);
     if (!title) title = await request({}, 256);
     title = title.replace(/^["'「『]+|["'」』]+$/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
-    if (!title || isDefaultTitle(title)) return false;
+    if (!title || isDefaultTitle(title)) { chat._autoTitle = false; return false; }
     chat.title = title;
+    chat._autoTitle = false;
     await api(`/api/chats/${chat.id}`, { method: "PUT", body: {
       title: chat.title, model: chat.model, params: chat.params, messages: chat.messages,
     }});
     loadChatList(chat.id);
     return true;
-  } catch {
+  } catch (e) {
+    // Cancelled because the user is active again: keep _autoTitle so the next
+    // reply retries. Real failures give up quietly (the header button remains).
+    if (e.name !== "AbortError") chat._autoTitle = false;
     return false;  // keep the provisional title
   } finally {
     clearTimeout(timer);
+    if (state._titleAbort === controller) state._titleAbort = null;
   }
 }
 
 $("#btnTitleGen")?.addEventListener("click", async () => {
   const chat = state.chat;
+  cancelPendingTitle();  // an explicit request wins over a pending automatic one
   const ok = chat ? await generateChatTitle(chat, true) : false;
   if (!ok) toast(t("chat.title_failed"), true);
 });

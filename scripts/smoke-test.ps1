@@ -42,7 +42,7 @@ try {
             throw "Static UI check failed (status $($index.StatusCode))"
         }
         $js = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/i18n.js" -UseBasicParsing -TimeoutSec 5
-        if ($js.StatusCode -ne 200 -or $js.Content -notmatch "chat.new_title") {
+        if ($js.StatusCode -ne 200 -or $js.Content -notmatch '"chat.new_title":') {
             throw "Bundled i18n.js check failed (status $($js.StatusCode))"
         }
         $ok = $true
