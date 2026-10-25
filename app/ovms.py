@@ -369,13 +369,41 @@ def cleanup_orphans() -> list[int]:
     return killed
 
 
-def _port_busy(port: int) -> bool:
+def _port_busy(port: int, host: str = "127.0.0.1") -> bool:
+    """True when something is already serving on this port.
+
+    A plain bind() test is not enough on Windows: when the existing listener set
+    SO_REUSEADDR (drogon — and therefore OVMS — does), bind() succeeds anyway and
+    the app starts a second OVMS that never receives a request. The ready probe
+    then keeps talking to the other server, so the model loads forever while
+    OVMS logs AVAILABLE. Connect first, then fall back to bind for sockets that
+    are bound but not listening yet.
+    """
+    target = "127.0.0.1" if host in ("", "0.0.0.0", "::") else host
+    try:
+        with socket.create_connection((target, int(port)), timeout=1.0):
+            return True
+    except OSError:
+        pass
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(("127.0.0.1", int(port)))
+            sock.bind((target, int(port)))
         return False
     except OSError:
         return True
+
+
+def _ovms_models_on_port(port: int) -> list[str]:
+    """Model names from ``GET /v1/config`` when an OVMS is listening on this port."""
+    try:
+        r = httpx.get(f"http://127.0.0.1:{int(port)}/v1/config", timeout=1.5)
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, dict):
+                return [str(k) for k in data][:8]
+    except Exception:
+        pass
+    return []
 
 
 def _load_openvino_library(lib_dir: Path):
@@ -534,7 +562,11 @@ class OVMServer:
             if self.proc is not None and self.proc.poll() is None:
                 raise RuntimeError(tr(lang, "err.already_running"))
             for candidate in (rest_port, grpc_port):
-                if _port_busy(candidate):
+                if _port_busy(candidate, bind_address):
+                    models = _ovms_models_on_port(candidate)
+                    if models:
+                        raise RuntimeError(tr(lang, "err.port_busy_ovms",
+                                              port=candidate, models=", ".join(models)))
                     raise RuntimeError(tr(lang, "err.port_busy", port=candidate))
             exe = runtime_exe(runtime_id, lang=lang)
             model_dir = MODELS_DIR / model
@@ -646,6 +678,7 @@ class OVMServer:
         url = f"http://{host}:{info.get('rest_port')}/v1/config"
         headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
         deadline = time.time() + 300
+        foreign_hits = 0  # /v1/config answers that belong to a *different* OVMS
         with httpx.Client(timeout=3) as c:
             while time.time() < deadline:
                 if proc.poll() is not None:
@@ -663,7 +696,10 @@ class OVMServer:
                 try:
                     r = c.get(url, headers=headers)
                     if r.status_code == 200:
-                        entry = (r.json() or {}).get(model) or {}
+                        cfg = r.json()
+                        if not isinstance(cfg, dict):
+                            cfg = {}
+                        entry = cfg.get(model) or {}
                         versions = entry.get("model_version_status") or []
                         states = [v.get("state", "") for v in versions]
                         if "AVAILABLE" in states:
@@ -678,6 +714,22 @@ class OVMServer:
                             self.load_error = str(msg)
                             self.logs.append(f"[load failed] {self.load_error}")
                             return
+                        # A config that lists other models but not ours twice in a row
+                        # cannot be the OVMS we started (it serves exactly one source
+                        # model): another server owns the port, so waiting is pointless.
+                        if entry:
+                            foreign_hits = 0
+                        else:
+                            others = [str(k) for k in cfg if k != model]
+                            if others:
+                                foreign_hits += 1
+                                if foreign_hits >= 2:
+                                    self.load_state = "failed"
+                                    self.load_error = tr(self._lang, "err.port_foreign",
+                                                         port=info.get("rest_port"),
+                                                         models=", ".join(others[:4]))
+                                    self.logs.append(f"[load failed] {self.load_error}")
+                                    return
                 except Exception:
                     pass
                 time.sleep(1.5)

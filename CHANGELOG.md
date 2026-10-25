@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Model loads no longer hang forever when another application already serves the REST port:
+  on Windows a foreign listener that set `SO_REUSEADDR` (OVMS does) does not block `bind()`, so
+  the port check passed, a second OVMS started, and the ready probe kept querying the other
+  server — the UI stayed on "Loading..." while OVMS logged AVAILABLE. The check now connects to
+  the port first and names the other OVMS and its models in the error; the ready probe also
+  fails fast with that message when a different server answers on the port (instead of waiting
+  for the 300 s timeout).
+
 ## [1.14.1] - 2026-10-26
 
 ### Fixed
