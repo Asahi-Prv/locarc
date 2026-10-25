@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.2] - 2026-10-26
+
 ### Fixed
 
 - Model loads no longer hang forever when another application already serves the REST port:
