@@ -468,6 +468,20 @@ def test_update_url_allowlist(monkeypatch):
     assert not updater.is_allowed_url("")
 
 
+def test_update_repo_migrates_legacy_config(monkeypatch):
+    from app import updater
+    # config.json written before the rename contains the old repository name.
+    monkeypatch.setattr(updater, "load_config",
+                        lambda: {"update_repo": "Asahi-Prv/i-AI-Studio"})
+    assert updater.repo() == "Asahi-Prv/locarc"
+    # Other custom repositories are left alone.
+    monkeypatch.setattr(updater, "load_config",
+                        lambda: {"update_repo": "someone/fork"})
+    assert updater.repo() == "someone/fork"
+    monkeypatch.setattr(updater, "load_config", lambda: {})
+    assert updater.repo() == "Asahi-Prv/locarc"
+
+
 def test_update_check_endpoint(monkeypatch):
     from app import updater
     payload = {"current": "1.0.3", "latest": "1.1.0", "tag": "v1.1.0", "available": True,

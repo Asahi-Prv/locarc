@@ -93,14 +93,15 @@ ASSET_NAME = WINDOWS_ASSET
 
 
 def repo() -> str:
-    return str(load_config().get("update_repo") or DEFAULT_REPO)
+    value = str(load_config().get("update_repo") or DEFAULT_REPO)
+    # Configs written before the rename contain the old repository name. Treat
+    # it as the current default so those installations keep seeing releases
+    # instead of being pinned to the compatibility repository.
+    return DEFAULT_REPO if value in LEGACY_REPOS else value
 
 
 def allowed_repos() -> set[str]:
     """Repositories whose release downloads may be used (including the old name)."""
-    # Include DEFAULT_REPO even when an existing config still points at the
-    # pre-rename repository: GitHub redirects the API request, and the returned
-    # asset URLs then use the canonical (new) repository name.
     return {repo(), DEFAULT_REPO, *LEGACY_REPOS}
 
 

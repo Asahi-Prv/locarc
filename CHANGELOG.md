@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-29
+
+### Fixed
+
+- Installations coming from Intel AI Studio keep receiving updates: a pre-rename
+  `update_repo` value in `config.json` is treated as `Asahi-Prv/locarc` instead of being
+  used verbatim.
+- The old repository name now hosts a compatibility release, so v1.14.x builds that only
+  know `Asahi-Prv/i-AI-Studio` can still discover and install LocArc automatically.
+
 ## [2.0.0] - 2026-10-29
 
 ### Changed
@@ -429,7 +439,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One-click Windows build (PyInstaller spec) with CI lint/tests, executable smoke test, and
   automatic GitHub releases.
 
-[Unreleased]: https://github.com/Asahi-Prv/locarc/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Asahi-Prv/locarc/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/Asahi-Prv/locarc/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Asahi-Prv/locarc/compare/v1.14.2...v2.0.0
 [1.12.2]: https://github.com/Asahi-Prv/i-AI-Studio/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/Asahi-Prv/i-AI-Studio/compare/v1.12.0...v1.12.1

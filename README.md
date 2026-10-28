@@ -316,10 +316,10 @@ App ID is unchanged). On Linux, `install.sh` copies `~/.local/share/intel-ai-stu
 `~/.local/share/locarc/data` the first time it runs. The old `AI_STUDIO_DATA` environment
 variable is still accepted as an alias for `LOCARC_DATA`.
 
-The first LocArc release also publishes the legacy `Intel-AI-Studio-*` asset names and app layout
-so builds from before the rename can update themselves once while the old repository name is
-still active. If an older build no longer offers the update after the repository rename, download
-v2.0.0 manually once.
+The old repository name (`Asahi-Prv/i-AI-Studio`) hosts a compatibility release with the legacy
+`Intel-AI-Studio-*` asset names and app layout, so v1.14.x builds can still find and install
+LocArc automatically. Their stored `update_repo` setting is then migrated to `Asahi-Prv/locarc`.
+If an older build does not offer the update, download the latest release manually once.
 
 ## Contributing
 

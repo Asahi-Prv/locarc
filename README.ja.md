@@ -308,9 +308,10 @@ python -m compileall -q app locarc.py
 `~/.local/share/intel-ai-studio/data` を `~/.local/share/locarc/data` へコピーします。旧環境
 変数 `AI_STUDIO_DATA` も `LOCARC_DATA` の別名として引き続き使用できます。
 
-最初の LocArc リリースには旧 `Intel-AI-Studio-*` アセット名と旧レイアウトも同梱されるため、
-旧リポジトリ名が有効な間は改名前のビルドからも一度だけ自動更新できます。リポジトリ名の変更後に
-旧ビルドが更新を検出しなくなった場合は、v2.0.0 を一度手動で導入してください。
+旧リポジトリ名（`Asahi-Prv/i-AI-Studio`）には旧 `Intel-AI-Studio-*` アセット名と旧レイアウトを
+含む互換リリースを置いているため、v1.14.x のビルドからも LocArc を自動で検出・導入できます。
+更新後の `update_repo` 設定は `Asahi-Prv/locarc` に移行されます。自動更新が表示されない場合は、
+最新リリースを一度手動で導入してください。
 
 ## コントリビュート
 
