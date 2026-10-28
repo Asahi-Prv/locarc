@@ -1,4 +1,4 @@
-"""Open the Intel AI Studio UI in a native WebKitGTK window.
+"""Open the LocArc UI in a native WebKitGTK window.
 
 The packaged app bundles its own Python, which does not provide PyGObject or
 WebKit2. On Linux the app therefore runs this helper with the distribution's
@@ -42,7 +42,7 @@ def main(url: str) -> int:
         print(f"WebKitGTK backend unavailable: {e}", file=sys.stderr)
         return 2
 
-    window = Gtk.Window(title="Intel AI Studio")
+    window = Gtk.Window(title="LocArc")
     window.set_default_size(1280, 860)
     window.set_size_request(960, 640)
     webview = WebKit2.WebView()

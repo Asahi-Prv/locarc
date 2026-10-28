@@ -45,7 +45,7 @@ ALLOWED_URL_PREFIXES = (
     "https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages/",
 )
 
-_UA = {"User-Agent": "intel-ai-studio"}
+_UA = {"User-Agent": "locarc"}
 _FILETREE_TTL = 1800
 _filetree_cache: dict = {"t": 0.0, "data": None}
 

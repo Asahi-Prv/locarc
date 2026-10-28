@@ -1,4 +1,4 @@
-# Contributing to Intel AI Studio
+# Contributing to LocArc
 
 [日本語版はこちら](CONTRIBUTING.ja.md)
 
@@ -19,8 +19,8 @@ conventions, and the review process.
 Requirements: Python 3.12+, Git, and Windows 10/11 or Ubuntu 24.04.
 
 ```bash
-git clone https://github.com/Asahi-Prv/i-AI-Studio.git
-cd intel-ai-studio
+git clone https://github.com/Asahi-Prv/locarc.git
+cd locarc
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 source .venv/bin/activate
@@ -28,7 +28,7 @@ pip install -r requirements-dev.txt
 python -m app.main        # or run.bat (Windows) / ./run.sh (Linux)
 ```
 
-The app stores all state in `./data` (override with the `AI_STUDIO_DATA` environment variable).
+The app stores all state in `./data` (override with the `LOCARC_DATA` environment variable).
 Test runs use a temporary data directory and never touch your real one.
 
 ## Checks before pushing
@@ -36,7 +36,7 @@ Test runs use a temporary data directory and never touch your real one.
 ```bash
 ruff check .
 pytest -q
-python -m compileall -q app tests ai_studio.py
+python -m compileall -q app tests locarc.py
 ```
 
 CI runs the same commands on every pull request (Windows and Linux), plus Windows and Linux

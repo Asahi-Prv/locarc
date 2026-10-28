@@ -11,7 +11,7 @@ are up to date before reporting an issue.
 
 Report privately through GitHub Security Advisories:
 
-<https://github.com/Asahi-Prv/i-AI-Studio/security/advisories/new>
+<https://github.com/Asahi-Prv/locarc/security/advisories/new>
 
 Please include:
 
@@ -25,7 +25,7 @@ date with you, and credit you in the release notes unless you prefer otherwise.
 
 ## Scope
 
-Intel AI Studio is a local-first management UI for OpenVINO Model Server. The most valuable
+LocArc is a local-first management UI for OpenVINO Model Server. The most valuable
 reports are:
 
 - bypassing the localhost-only binding of the management UI or the OVMS API key,

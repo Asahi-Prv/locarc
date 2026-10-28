@@ -1,17 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for Intel AI Studio (onedir, windowed).
+"""PyInstaller spec for LocArc (onedir, windowed).
 
 Build from the repository root:
 
-    python -m PyInstaller --noconfirm --clean intel_ai_studio.spec
+    python -m PyInstaller --noconfirm --clean locarc.spec
 
-The output is written to ``dist/Intel-AI-Studio/`` and can be zipped and shipped
+The output is written to ``dist/LocArc/`` and can be zipped and shipped
 as-is. Paths in ``datas`` are resolved relative to this spec file, so the spec
 must stay in the repository root.
 """
 
 a = Analysis(
-    ["ai_studio.py"],
+    ["locarc.py"],
     pathex=[],
     binaries=[],
     datas=[("app/static", "app/static"), ("app/linux_window.py", "app/linux_window.py")],
@@ -46,7 +46,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Intel-AI-Studio",
+    name="LocArc",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -65,5 +65,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="Intel-AI-Studio",
+    name="LocArc",
 )

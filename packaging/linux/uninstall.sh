@@ -1,11 +1,11 @@
 #!/bin/sh
-# Remove a per-user Intel AI Studio installation created by install.sh.
+# Remove a per-user LocArc installation created by install.sh.
 #
 #   ./uninstall.sh          remove the app, keep user data (models, chats, settings)
 #   ./uninstall.sh --purge  remove the app and all user data
 set -eu
 
-APP_ID="intel-ai-studio"
+APP_ID="locarc"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 INSTALL_DIR="$DATA_HOME/$APP_ID"
 BIN_DIR="$HOME/.local/bin"

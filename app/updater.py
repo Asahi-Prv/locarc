@@ -9,8 +9,8 @@ robocopy; Linux uses POSIX ``sh`` + ``cp``.
 
 Release assets are platform-specific:
 
-- Windows: ``Intel-AI-Studio-windows-x64.zip``
-- Linux:   ``Intel-AI-Studio-linux-x64.tar.gz``
+- Windows: ``LocArc-windows-x64.zip``
+- Linux:   ``LocArc-linux-x64.tar.gz``
 """
 from __future__ import annotations
 
@@ -34,12 +34,20 @@ from .i18n import tr
 from .procutil import subprocess_flags
 
 IS_WINDOWS = os.name == "nt"
-DEFAULT_REPO = "Asahi-Prv/i-AI-Studio"
-WINDOWS_ASSET = "Intel-AI-Studio-windows-x64.zip"
-LINUX_ASSET = "Intel-AI-Studio-linux-x64.tar.gz"
+DEFAULT_REPO = "Asahi-Prv/locarc"
+# Repository names used before the LocArc rename. They are kept in the URL
+# allow-list so a release can be published while GitHub redirects the old name.
+LEGACY_REPOS = ("Asahi-Prv/i-AI-Studio",)
+WINDOWS_ASSET = "LocArc-windows-x64.zip"
+LINUX_ASSET = "LocArc-linux-x64.tar.gz"
+LEGACY_WINDOWS_ASSET = "Intel-AI-Studio-windows-x64.zip"
+LEGACY_LINUX_ASSET = "Intel-AI-Studio-linux-x64.tar.gz"
+APP_DIR_NAME = "LocArc"
+LEGACY_APP_DIR_NAME = "Intel-AI-Studio"
+LEGACY_EXE_NAME = "Intel-AI-Studio.exe" if IS_WINDOWS else "Intel-AI-Studio"
 CHECKSUMS_NAME = "SHA256SUMS.txt"
 CHECK_TTL = 24 * 3600
-_UA = {"User-Agent": "intel-ai-studio", "Accept": "application/vnd.github+json"}
+_UA = {"User-Agent": "locarc", "Accept": "application/vnd.github+json"}
 
 
 def asset_name() -> str:
@@ -47,9 +55,37 @@ def asset_name() -> str:
     return WINDOWS_ASSET if IS_WINDOWS else LINUX_ASSET
 
 
+def legacy_asset_name() -> str:
+    """Pre-rename release asset name, used as a fallback for one release."""
+    return LEGACY_WINDOWS_ASSET if IS_WINDOWS else LEGACY_LINUX_ASSET
+
+
 def exe_name() -> str:
     """Executable name inside the packaged app folder for the running platform."""
-    return "Intel-AI-Studio.exe" if IS_WINDOWS else "Intel-AI-Studio"
+    return "LocArc.exe" if IS_WINDOWS else "LocArc"
+
+
+def legacy_exe_name() -> str:
+    """Pre-rename executable name, still accepted inside staging folders."""
+    return LEGACY_EXE_NAME
+
+
+def find_staged_app(staged_parent: Path) -> Path | None:
+    """Return the app folder inside an extracted archive (new or legacy layout)."""
+    for name in (APP_DIR_NAME, LEGACY_APP_DIR_NAME):
+        candidate = staged_parent / name
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def find_staged_exe(app_dir: Path) -> Path | None:
+    """Return the executable inside a staged app folder (new or legacy name)."""
+    for name in (exe_name(), legacy_exe_name()):
+        candidate = app_dir / name
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 # Backwards-compatible alias (Windows asset); prefer ``asset_name()``.
@@ -58,6 +94,14 @@ ASSET_NAME = WINDOWS_ASSET
 
 def repo() -> str:
     return str(load_config().get("update_repo") or DEFAULT_REPO)
+
+
+def allowed_repos() -> set[str]:
+    """Repositories whose release downloads may be used (including the old name)."""
+    # Include DEFAULT_REPO even when an existing config still points at the
+    # pre-rename repository: GitHub redirects the API request, and the returned
+    # asset URLs then use the canonical (new) repository name.
+    return {repo(), DEFAULT_REPO, *LEGACY_REPOS}
 
 
 def parse_version(text: str | None) -> tuple[int, ...]:
@@ -77,7 +121,10 @@ def is_newer(latest: str | None, current: str | None) -> bool:
 
 
 def is_allowed_url(url: str) -> bool:
-    return bool(url) and url.startswith(f"https://github.com/{repo()}/releases/download/")
+    return bool(url) and any(
+        url.startswith(f"https://github.com/{name}/releases/download/")
+        for name in allowed_repos()
+    )
 
 
 def _cached_result(cached: dict) -> dict:
@@ -96,7 +143,7 @@ def check_for_update(force: bool = False, lang: str | None = None) -> dict:
         return _cached_result(cached)
 
     repository = repo()
-    with httpx.Client(timeout=30, headers=_UA) as client:
+    with httpx.Client(timeout=30, headers=_UA, follow_redirects=True) as client:
         response = client.get(f"https://api.github.com/repos/{repository}/releases/latest")
         response.raise_for_status()
         release = response.json()
@@ -104,7 +151,11 @@ def check_for_update(force: bool = False, lang: str | None = None) -> dict:
     tag = str(release.get("tag_name") or "")
     latest = tag.lstrip("v")
     assets = {a.get("name"): a for a in release.get("assets") or []}
-    zip_asset = assets.get(asset_name()) or {}
+    # New releases publish the LocArc names; the legacy names are accepted for
+    # one transition release (and for clients that still ask for them).
+    asset = next((name for name in (asset_name(), legacy_asset_name()) if name in assets),
+                 asset_name())
+    zip_asset = assets.get(asset) or {}
     sums_asset = assets.get(CHECKSUMS_NAME) or {}
     info = {
         "current": APP_VERSION,
@@ -115,6 +166,7 @@ def check_for_update(force: bool = False, lang: str | None = None) -> dict:
         "name": release.get("name") or tag,
         "published_at": release.get("published_at") or "",
         "notes": (release.get("body") or "")[:4000],
+        "asset_name": zip_asset.get("name") or asset,
         "asset_url": zip_asset.get("browser_download_url") or "",
         "asset_size": int(zip_asset.get("size") or 0),
         "checksums_url": sums_asset.get("browser_download_url") or "",
@@ -281,7 +333,7 @@ def update_worker(tid: str, info: dict) -> None:
         if base_dir.exists():
             rmtree(base_dir, lang=lang)
         base_dir.mkdir(parents=True, exist_ok=True)
-        asset = asset_name()
+        asset = str(info.get("asset_name") or asset_name())
         archive_path = base_dir / asset
 
         tasks.set_message(tid, "task.update_downloading")
@@ -304,8 +356,8 @@ def update_worker(tid: str, info: dict) -> None:
         else:
             with tarfile.open(archive_path) as archive:
                 archive.extractall(staged_parent, filter=tar_safe_filter)
-        staged_app = staged_parent / "Intel-AI-Studio"
-        if not (staged_app / exe_name()).is_file():
+        staged_app = find_staged_app(staged_parent)
+        if staged_app is None or find_staged_exe(staged_app) is None:
             raise RuntimeError(tr(lang, "err.update_no_asset"))
 
         tasks.finish(tid, "task.update_ready")

@@ -4,7 +4,7 @@
 
 const I18N = {
   en: {
-    "app.name": "Intel AI Studio",
+    "app.name": "LocArc",
 
     "nav.new_chat": "New Chat",
     "nav.chat": "Chat",
@@ -259,7 +259,7 @@ const I18N = {
   },
 
   ja: {
-    "app.name": "Intel AI Studio",
+    "app.name": "LocArc",
 
     "nav.new_chat": "新規チャット",
     "nav.chat": "チャット",

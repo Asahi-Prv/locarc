@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-29
+
+### Changed
+
+- Renamed the app from **Intel AI Studio** to **LocArc**. The Windows executable is now
+  `LocArc.exe`, Linux uses `LocArc`, release assets use the `LocArc-*` names, and the repository
+  moved to `Asahi-Prv/locarc`.
+- Existing data keeps working: the `data` folder layout is unchanged, the `AI_STUDIO_DATA`
+  environment variable remains supported as an alias for `LOCARC_DATA`, and the Linux
+  `install.sh` copies data from `~/.local/share/intel-ai-studio` on first install.
+- The first LocArc release also ships the legacy `Intel-AI-Studio-*` asset names and app layout
+  so builds from before the rename can update themselves once while the old repository name is
+  still active.
+
 ## [1.14.2] - 2026-10-26
 
 ### Fixed
@@ -415,7 +429,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One-click Windows build (PyInstaller spec) with CI lint/tests, executable smoke test, and
   automatic GitHub releases.
 
-[Unreleased]: https://github.com/Asahi-Prv/i-AI-Studio/compare/v1.12.2...HEAD
+[Unreleased]: https://github.com/Asahi-Prv/locarc/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Asahi-Prv/locarc/compare/v1.14.2...v2.0.0
 [1.12.2]: https://github.com/Asahi-Prv/i-AI-Studio/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/Asahi-Prv/i-AI-Studio/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/Asahi-Prv/i-AI-Studio/compare/v1.11.0...v1.12.0

@@ -1,4 +1,4 @@
-# Intel AI Studio へのコントリビュート
+# LocArc へのコントリビュート
 
 [English version is here](CONTRIBUTING.md)
 
@@ -19,8 +19,8 @@
 必要なもの: Python 3.12 以上、Git、Windows 10/11 または Ubuntu 24.04。
 
 ```bash
-git clone https://github.com/Asahi-Prv/i-AI-Studio.git
-cd intel-ai-studio
+git clone https://github.com/Asahi-Prv/locarc.git
+cd locarc
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 source .venv/bin/activate
@@ -28,7 +28,7 @@ pip install -r requirements-dev.txt
 python -m app.main        # Windowsは run.bat、Linuxは ./run.sh でも可
 ```
 
-アプリのデータは `./data` に保存されます（環境変数 `AI_STUDIO_DATA` で変更可能）。テストは一時
+アプリのデータは `./data` に保存されます（環境変数 `LOCARC_DATA` で変更可能）。テストは一時
 ディレクトリを使うため、実際のデータには触れません。
 
 ## push前のチェック
@@ -36,7 +36,7 @@ python -m app.main        # Windowsは run.bat、Linuxは ./run.sh でも可
 ```bash
 ruff check .
 pytest -q
-python -m compileall -q app tests ai_studio.py
+python -m compileall -q app tests locarc.py
 ```
 
 CIでも同じチェックが全プルリクエストに対してWindowsとLinuxの両方で実行され、タグでは
@@ -114,7 +114,7 @@ Windows / Linux 実行ファイルのビルドも行われます。
 - タグのバージョンを `app/version.py` に反映
 - Windows / Linux 実行ファイルのビルドと各スモークテスト
 - Windowsポータブルzip・Inno Setupインストーラー・Linux tarballの作成と、統合 `SHA256SUMS.txt`
-  の生成
+  の生成（旧 `Intel-AI-Studio-*` 名の互換アセットも同梱）
 - Conventional Commitsから分類済みリリースノートを生成（`scripts/release_notes.py`）
 - 全ファイルを添付してGitHubリリースを公開
 

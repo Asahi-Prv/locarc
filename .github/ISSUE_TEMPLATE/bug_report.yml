@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with Intel AI Studio
+description: Report a problem with LocArc
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for taking the time to report a bug! Please fill in as much detail as possible.
         **Do not report security vulnerabilities here** — see
-        [SECURITY.md](https://github.com/Asahi-Prv/i-AI-Studio/blob/main/SECURITY.md).
+        [SECURITY.md](https://github.com/Asahi-Prv/locarc/blob/main/SECURITY.md).
 
   - type: checkboxes
     id: preflight
@@ -62,7 +62,7 @@ body:
   - type: input
     id: app_version
     attributes:
-      label: Intel AI Studio version / commit
+      label: LocArc version / commit
       placeholder: "e.g. 0.1.0 or commit abc1234"
     validations:
       required: true
@@ -85,7 +85,7 @@ body:
     attributes:
       label: How are you running it?
       options:
-        - Packaged executable (Intel-AI-Studio.exe / Intel-AI-Studio)
+        - Packaged executable (LocArc.exe / LocArc)
         - From source (run.bat / run.sh / python -m app.main)
     validations:
       required: true

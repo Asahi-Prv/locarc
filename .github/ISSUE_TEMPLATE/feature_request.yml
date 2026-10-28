@@ -1,12 +1,12 @@
 name: Feature request
-description: Suggest an idea or improvement for Intel AI Studio
+description: Suggest an idea or improvement for LocArc
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve Intel AI Studio! Please describe the problem first,
+        Thanks for helping improve LocArc! Please describe the problem first,
         then your proposed solution.
 
   - type: checkboxes

@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Intel AI Studio
+Name=LocArc
 GenericName=OpenVINO Model Server Manager
 Comment=Manage OpenVINO Model Server runtimes, download models, load them and chat
-Exec=@INSTALL_DIR@/Intel-AI-Studio
+Exec=@INSTALL_DIR@/LocArc
 Terminal=false
 Categories=Development;Science;Utility;
-Keywords=OpenVINO;OVMS;AI;LLM;Intel;
+Keywords=OpenVINO;OVMS;AI;LLM;Intel;LocArc;

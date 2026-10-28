@@ -1,7 +1,7 @@
-; Inno Setup script for Intel AI Studio (per-user install, no admin required).
+; Inno Setup script for LocArc (per-user install, no admin required).
 ;
 ; Build from the repository root after PyInstaller:
-;   ISCC /DMyAppVersion=1.2.0 installer\intel_ai_studio.iss
+;   ISCC /DMyAppVersion=1.2.0 installer\locarc.iss
 ;
 ; Installs the portable payload and creates shortcuts; the app opens in a
 ; native WebView2 window.
@@ -10,12 +10,14 @@
   #define MyAppVersion "0.0.0"
 #endif
 
-#define MyAppName "Intel AI Studio"
+#define MyAppName "LocArc"
 #define MyAppPublisher "Asahi"
-#define MyAppURL "https://github.com/Asahi-Prv/i-AI-Studio"
-#define MyAppExeName "Intel-AI-Studio.exe"
+#define MyAppURL "https://github.com/Asahi-Prv/locarc"
+#define MyAppExeName "LocArc.exe"
 
 [Setup]
+; Keep this AppId stable: it is how Inno Setup recognizes and upgrades an
+; existing Intel AI Studio installation (including its data folder).
 AppId={{3F1C7A64-9B2E-4D5A-8E31-6C0B7D4F2A19}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -29,7 +31,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseFilename=Intel-AI-Studio-Setup-x64
+OutputBaseFilename=LocArc-Setup-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -48,7 +50,7 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\Intel-AI-Studio\*"; DestDir: "{app}"; \
+Source: "..\dist\LocArc\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "data\*"
 
 [Icons]

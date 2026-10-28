@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Smoke test a built Intel AI Studio executable: start it with a throwaway data
+# Smoke test a built LocArc executable: start it with a throwaway data
 # directory, wait for the HTTP API and the bundled static UI to answer, then stop it.
 set -euo pipefail
 
-EXE="${1:-dist/Intel-AI-Studio/Intel-AI-Studio}"
+EXE="${1:-dist/LocArc/LocArc}"
 PORT="${PORT:-8810}"
 TIMEOUT="${TIMEOUT:-60}"
 
@@ -13,8 +13,8 @@ if [ ! -x "$EXE" ]; then
 fi
 EXE="$(cd "$(dirname "$EXE")" && pwd)/$(basename "$EXE")"
 
-DATA="$(mktemp -d "${TMPDIR:-/tmp}/ai-studio-smoke.XXXXXX")"
-export AI_STUDIO_DATA="$DATA"
+DATA="$(mktemp -d "${TMPDIR:-/tmp}/locarc-smoke.XXXXXX")"
+export LOCARC_DATA="$DATA"
 LOG="$DATA/app.log"
 
 echo "Starting $EXE ..."
@@ -38,7 +38,7 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
     exit 1
   fi
   if curl -fsS "http://127.0.0.1:$PORT/api/config" >/dev/null 2>&1; then
-    if ! curl -fsS "http://127.0.0.1:$PORT/" | grep -q "Intel AI Studio"; then
+    if ! curl -fsS "http://127.0.0.1:$PORT/" | grep -q "LocArc"; then
       echo "Static UI check failed" >&2
       exit 1
     fi

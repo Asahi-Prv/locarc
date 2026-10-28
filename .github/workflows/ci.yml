@@ -24,6 +24,6 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
       - name: Byte-compile
-        run: python -m compileall -q app ai_studio.py
+        run: python -m compileall -q app locarc.py
       - name: Tests
         run: pytest -q

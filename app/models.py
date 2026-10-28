@@ -18,7 +18,7 @@ from .fsutil import is_within, rmtree
 from .i18n import tr
 from .procutil import subprocess_flags
 
-_UA = {"User-Agent": "intel-ai-studio"}
+_UA = {"User-Agent": "locarc"}
 _META = ".ovmsui.json"
 
 HF_API = "https://huggingface.co/api/models"

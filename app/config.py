@@ -1,4 +1,4 @@
-"""Path and configuration handling for Intel AI Studio."""
+"""Path and configuration handling for LocArc."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .version import __version__
 
-APP_NAME = "Intel AI Studio"
+APP_NAME = "LocArc"
 APP_VERSION = __version__
 
 
@@ -21,7 +21,10 @@ def _base_dir() -> Path:
 
 
 BASE_DIR = _base_dir()
-DATA_DIR = Path(os.environ.get("AI_STUDIO_DATA", str(BASE_DIR / "data"))).resolve()
+# ``AI_STUDIO_DATA`` is the pre-rename name; keep accepting it so existing
+# installations and scripts keep working.
+DATA_DIR = Path(os.environ.get("LOCARC_DATA") or os.environ.get("AI_STUDIO_DATA")
+                or str(BASE_DIR / "data")).resolve()
 MODELS_DIR = DATA_DIR / "models"        # downloaded models (one folder per model)
 RUNTIMES_DIR = DATA_DIR / "runtimes"    # installed ovms builds
 CONFIG_PATH = DATA_DIR / "config.json"
@@ -73,7 +76,7 @@ DEFAULTS = {
     "ovms_api_key": "",            # Bearer key required by OVMS itself (API_KEY env)
     # self-update (packaged builds only); cached release info lives in config.json
     "update_check_enabled": True,
-    "update_repo": "Asahi-Prv/i-AI-Studio",
+    "update_repo": "Asahi-Prv/locarc",
     "last_update_check": 0.0,
     "update_latest": None,
 }

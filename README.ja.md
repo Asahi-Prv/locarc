@@ -1,4 +1,4 @@
-# Intel AI Studio
+# LocArc
 
 [English README is here](README.md)
 
@@ -8,9 +8,13 @@
 > 商標であり、本プロジェクトでは互換性の説明のためにのみ使用しています。Intel の公式製品では
 > ありません。
 
-[OpenVINO Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) をネイティブ
-ウィンドウ（WebView2）で管理するデスクトップアプリです。ランタイムの導入からモデルの
-ダウンロード、ロード、チャットまでを一通り操作できます。
+**LocArc** は、[OpenVINO Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) を
+ネイティブウィンドウ（WebView2）で管理するローカル優先のデスクトップアプリです。ランタイムの
+導入からモデルのダウンロード、ロード、チャットまでを一通り操作できます。
+
+> [!NOTE]
+> **LocArc** は旧称 **Intel AI Studio** です。既存の `data` フォルダはそのまま利用できます
+> （[Intel AI Studio からの移行](#intel-ai-studio-からの移行)）。
 
 - **OVMSランタイムのインストール** — Stable（GitHubリリース）/ Weekly、`python_on` 版のみ。
   可能な場合は SHA-256 を検証。
@@ -43,26 +47,26 @@
 
 | ビルド | ダウンロード | 動作 |
 | --- | --- | --- |
-| **インストーラー版**（推奨） | `Intel-AI-Studio-Setup-x64.exe` | ユーザー単位でインストール（管理者権限不要）。スタートメニューとデスクトップ（任意）にショートカットを作成し、ネイティブウィンドウ（WebView2）で起動します |
-| **ポータブル版** | `Intel-AI-Studio-windows-x64.zip` | 任意の場所に展開して `Intel-AI-Studio.exe` を実行。ネイティブウィンドウ（WebView2）で起動します（インストール不要） |
+| **インストーラー版**（推奨） | `LocArc-Setup-x64.exe` | ユーザー単位でインストール（管理者権限不要）。スタートメニューとデスクトップ（任意）にショートカットを作成し、ネイティブウィンドウ（WebView2）で起動します |
+| **ポータブル版** | `LocArc-windows-x64.zip` | 任意の場所に展開して `LocArc.exe` を実行。ネイティブウィンドウ（WebView2）で起動します（インストール不要） |
 
 どちらも同じexeを使い、インストーラーはショートカットとアンインストーラーを追加するだけです。
 署名がないためWindowsのSmartScreen警告が出る場合があります（*詳細情報 → 実行*）。
 
 ### Linux（Ubuntu 24.04）
 
-`Intel-AI-Studio-linux-x64.tar.gz` をダウンロードします。ポータブルフォルダに加えて、
+`LocArc-linux-x64.tar.gz` をダウンロードします。ポータブルフォルダに加えて、
 ユーザー単位のインストーラーも同梱されています:
 
 ```bash
-tar -xzf Intel-AI-Studio-linux-x64.tar.gz
-cd Intel-AI-Studio
+tar -xzf LocArc-linux-x64.tar.gz
+cd LocArc
 ./install.sh          # ランチャーとアプリメニュー登録（管理者権限不要）
-./Intel-AI-Studio     # インストールせず直接実行することもできます
+./LocArc          # インストールせず直接実行することもできます
 ```
 
-`install.sh` はアプリを `~/.local/share/intel-ai-studio` へコピーし、`~/.local/bin` に
-`intel-ai-studio` コマンドを、アプリメニューに `.desktop` エントリを登録します。
+`install.sh` はアプリを `~/.local/share/locarc` へコピーし、`~/.local/bin` に
+`locarc` コマンドを、アプリメニューに `.desktop` エントリを登録します。
 `./uninstall.sh` は `data` を残してアプリを削除します（`--purge` でデータも削除）。
 
 Linux版はOVMS `python_on` パッケージと同じ Ubuntu 24.04 を対象にしています。ネイティブ
@@ -88,16 +92,16 @@ sudo apt install python3-gi gir1.2-webkit2-4.1
 Windows:
 
 ```bat
-git clone https://github.com/Asahi-Prv/i-AI-Studio.git
-cd intel-ai-studio
+git clone https://github.com/Asahi-Prv/locarc.git
+cd locarc
 run.bat
 ```
 
 Linux:
 
 ```bash
-git clone https://github.com/Asahi-Prv/i-AI-Studio.git
-cd intel-ai-studio
+git clone https://github.com/Asahi-Prv/locarc.git
+cd locarc
 ./run.sh
 ```
 
@@ -131,7 +135,7 @@ Windows:
 build.bat
 ```
 
-`dist\Intel-AI-Studio\Intel-AI-Studio.exe`（Python同梱のポータブルフォルダ）が生成されます。
+`dist\LocArc\LocArc.exe`（Python同梱のポータブルフォルダ）が生成されます。
 出荷前にスモークテストで起動確認できます:
 
 ```powershell
@@ -144,19 +148,19 @@ Linux:
 ./build.sh
 ```
 
-`dist/Intel-AI-Studio/Intel-AI-Studio`（`install.sh` / `uninstall.sh` 込み・Python同梱の
+`dist/LocArc/LocArc`（`install.sh` / `uninstall.sh` 込み・Python同梱の
 ポータブルフォルダ）が生成されます。起動確認:
 
 ```bash
-scripts/smoke-test.sh dist/Intel-AI-Studio/Intel-AI-Studio
+scripts/smoke-test.sh dist/LocArc/LocArc
 ```
 
-データはexeと同じフォルダの `data` に保存されます。配布するときは `dist/Intel-AI-Studio`
+データはexeと同じフォルダの `data` に保存されます。配布するときは `dist/LocArc`
 フォルダごと固めます（Windowsはzip、Linuxは `tar.gz`）。Windowsは署名がないためSmartScreen
 警告が出る場合があります（*詳細情報 → 実行*）。Linuxは展開して `./install.sh` を実行するか、
 実行ファイルを直接起動します。
 
-ビルド設定は `intel_ai_studio.spec`（datas・windowed・UPXなし）にあります。CIは同じspecで
+ビルド設定は `locarc.spec`（datas・windowed・UPXなし）にあります。CIは同じspecで
 WindowsとLinuxを `v*` タグでビルドし、それぞれの起動確認後に全ファイルをGitHubリリースへ
 添付します（`.github/workflows/build.yml`）。
 
@@ -206,7 +210,7 @@ OVMSの `image_generation` タスク向けにエクスポートされたモデ�
 
 - ソース実行: `<プロジェクト>/data/`
 - 配布exe: `<exeのあるフォルダ>/data/`
-- 環境変数 `AI_STUDIO_DATA` で変更可能。
+- 環境変数 `LOCARC_DATA` で変更可能（`AI_STUDIO_DATA` も引き続き使用可）。
 
 | パス | 内容 |
 | --- | --- |
@@ -243,8 +247,8 @@ OVMSの `image_generation` タスク向けにエクスポートされたモデ�
 ## プロジェクト構成
 
 ```
-ai_studio.py          エントリポイント（PyInstallerでも使用）
-intel_ai_studio.spec  PyInstallerビルド設定（onedir・windowed）
+locarc.py             エントリポイント（PyInstallerでも使用）
+locarc.spec           PyInstallerビルド設定（onedir・windowed）
 build.bat / build.sh  ビルドスクリプト（Windows / Linux）
 run.bat / run.sh      開発用ランチャー（Windows / Linux）
 app/
@@ -269,7 +273,7 @@ tests/                バックエンドAPIテスト（pytest）
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-python -m compileall -q app ai_studio.py
+python -m compileall -q app locarc.py
 ```
 
 プルリクエストではCIで同じチェックがWindowsとLinuxの両方で実行されます。Windows / Linux の
@@ -281,11 +285,11 @@ python -m compileall -q app ai_studio.py
 **設定**タブに通知ドットを表示します。**設定 → アップデート**から手動確認とワンクリック更新が
 できます:
 
-1. プラットフォーム別のアーカイブ（`Intel-AI-Studio-windows-x64.zip` /
-   `Intel-AI-Studio-linux-x64.tar.gz`）をダウンロードし、リリースの `SHA256SUMS.txt` と照合して
+1. プラットフォーム別のアーカイブ（`LocArc-windows-x64.zip` /
+   `LocArc-linux-x64.tar.gz`）をダウンロードし、リリースの `SHA256SUMS.txt` と照合して
    検証します。
 2. 新ビルドをステージングし、アプリは終了。分離起動した小さなヘルパーがアプリ本体
-   （`Intel-AI-Studio.exe` / `Intel-AI-Studio` と `_internal`）を入れ替えて再起動します。
+   （`LocArc.exe` / `LocArc` と `_internal`）を入れ替えて再起動します。
    ヘルパーはWindowsではPowerShell + robocopy、LinuxではPOSIX `sh` スクリプトです。
 
 `data` フォルダ（ランタイム・モデル・チャット・設定）は一切変更されません。起動時の確認は同じ
@@ -294,6 +298,19 @@ python -m compileall -q app ai_studio.py
 > **v1.4.0以前**のビルドでは自動更新の適用に失敗することがあります（ヘルパースクリプトの起動方式
 > に問題があり、終了後に実行されませんでした）。更新後にアプリが再起動しない場合は、一度だけ
 > 手動で最新リリースを導入してください。v1.4.1以降は自動更新が正常に動作します。
+
+## Intel AI Studio からの移行
+
+データの配置は変わっていません。実行ファイルと同じフォルダの `data` をそのまま使用します。
+ポータブル版は新しいバージョンを旧フォルダに上書き展開すればデータを引き継げます。Windows
+インストーラーは Inno Setup の App ID を変更していないため、旧インストール先と `data` を
+維持したままアップグレードします。Linux では `install.sh` が初回実行時に
+`~/.local/share/intel-ai-studio/data` を `~/.local/share/locarc/data` へコピーします。旧環境
+変数 `AI_STUDIO_DATA` も `LOCARC_DATA` の別名として引き続き使用できます。
+
+最初の LocArc リリースには旧 `Intel-AI-Studio-*` アセット名と旧レイアウトも同梱されるため、
+旧リポジトリ名が有効な間は改名前のビルドからも一度だけ自動更新できます。リポジトリ名の変更後に
+旧ビルドが更新を検出しなくなった場合は、v2.0.0 を一度手動で導入してください。
 
 ## コントリビュート
 

@@ -20,7 +20,7 @@ def reset_config() -> None:
 
 def test_static_ui_is_served():
     assert client.get("/").status_code == 200
-    assert "Intel AI Studio" in client.get("/").text
+    assert "LocArc" in client.get("/").text
     # the key must be defined (not just referenced by isDefaultTitle), or the
     # frontend never recognizes the default chat title
     assert '"chat.new_title":' in client.get("/i18n.js").text
@@ -450,17 +450,20 @@ def test_version_comparison():
 def test_update_checksum_parsing():
     from app.updater import checksum_for
     digest = "a" * 64
-    text = f"{digest}  Intel-AI-Studio-windows-x64.zip\n{'b' * 64}  other.zip\n"
-    assert checksum_for(text, "Intel-AI-Studio-windows-x64.zip") == digest
+    text = f"{digest}  LocArc-windows-x64.zip\n{'b' * 64}  other.zip\n"
+    assert checksum_for(text, "LocArc-windows-x64.zip") == digest
     assert checksum_for(text, "missing.zip") is None
     assert checksum_for("garbage", "x") is None
 
 
 def test_update_url_allowlist(monkeypatch):
     from app import updater
+    # An existing config may still point at the pre-rename repository.
     monkeypatch.setattr(updater, "repo", lambda: "Asahi-Prv/i-AI-Studio")
     assert updater.is_allowed_url(
-        "https://github.com/Asahi-Prv/i-AI-Studio/releases/download/v1.1.0/Intel-AI-Studio-windows-x64.zip")
+        "https://github.com/Asahi-Prv/locarc/releases/download/v2.0.0/LocArc-windows-x64.zip")
+    assert updater.is_allowed_url(
+        "https://github.com/Asahi-Prv/i-AI-Studio/releases/download/v1.14.2/Intel-AI-Studio-windows-x64.zip")
     assert not updater.is_allowed_url("https://evil.example.com/x.zip")
     assert not updater.is_allowed_url("")
 
@@ -468,7 +471,7 @@ def test_update_url_allowlist(monkeypatch):
 def test_update_check_endpoint(monkeypatch):
     from app import updater
     payload = {"current": "1.0.3", "latest": "1.1.0", "tag": "v1.1.0", "available": True,
-               "html_url": "https://github.com/Asahi-Prv/i-AI-Studio/releases/tag/v1.1.0",
+               "html_url": "https://github.com/Asahi-Prv/locarc/releases/tag/v1.1.0",
                "asset_url": "", "checksums_url": ""}
     monkeypatch.setattr(updater, "check_for_update", lambda force=False, lang=None: dict(payload))
     r = client.get("/api/update/check")
@@ -571,7 +574,7 @@ def test_probe_devices_refresh_bypasses_cache(monkeypatch):
 def test_update_script_is_pid_reuse_safe(tmp_path):
     from app.updater import write_update_script
     script = tmp_path / "apply.ps1"
-    write_update_script(tmp_path / "staged", tmp_path / "app", "Intel-AI-Studio.exe",
+    write_update_script(tmp_path / "staged", tmp_path / "app", "LocArc.exe",
                         tmp_path / "updates" / "v1", script)
     text = script.read_text(encoding="utf-8")
     assert "[System.IO.File]::Open" in text  # waits for the exe lock, not a PID
@@ -582,11 +585,30 @@ def test_update_script_is_pid_reuse_safe(tmp_path):
 def test_update_asset_names_by_platform():
     from app import updater
     if os.name == "nt":
-        assert updater.asset_name() == "Intel-AI-Studio-windows-x64.zip"
-        assert updater.exe_name() == "Intel-AI-Studio.exe"
+        assert updater.asset_name() == "LocArc-windows-x64.zip"
+        assert updater.exe_name() == "LocArc.exe"
+        assert updater.legacy_asset_name() == "Intel-AI-Studio-windows-x64.zip"
+        assert updater.legacy_exe_name() == "Intel-AI-Studio.exe"
     else:
-        assert updater.asset_name() == "Intel-AI-Studio-linux-x64.tar.gz"
-        assert updater.exe_name() == "Intel-AI-Studio"
+        assert updater.asset_name() == "LocArc-linux-x64.tar.gz"
+        assert updater.exe_name() == "LocArc"
+        assert updater.legacy_asset_name() == "Intel-AI-Studio-linux-x64.tar.gz"
+        assert updater.legacy_exe_name() == "Intel-AI-Studio"
+
+
+def test_update_staging_accepts_legacy_layout(tmp_path):
+    from app import updater
+    legacy = tmp_path / "Intel-AI-Studio"
+    legacy.mkdir()
+    (legacy / updater.legacy_exe_name()).write_bytes(b"")
+    assert updater.find_staged_app(tmp_path) == legacy
+    assert updater.find_staged_exe(legacy).name == updater.legacy_exe_name()
+
+    current = tmp_path / "LocArc"
+    current.mkdir()
+    (current / updater.exe_name()).write_bytes(b"")
+    assert updater.find_staged_app(tmp_path) == current
+    assert updater.find_staged_exe(current).name == updater.exe_name()
 
 
 def test_update_script_posix(tmp_path):
@@ -594,7 +616,7 @@ def test_update_script_posix(tmp_path):
 
     from app.updater import write_update_script_posix
     script = tmp_path / "apply.sh"
-    write_update_script_posix(tmp_path / "staged", tmp_path / "app", "Intel-AI-Studio",
+    write_update_script_posix(tmp_path / "staged", tmp_path / "app", "LocArc",
                               tmp_path / "updates" / "v1", script, 4321)
     text = script.read_text(encoding="utf-8")
     assert text.startswith("#!/bin/sh")

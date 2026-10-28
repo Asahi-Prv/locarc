@@ -1,4 +1,4 @@
-"""FastAPI backend for the Intel AI Studio UI."""
+"""FastAPI backend for the LocArc UI."""
 from __future__ import annotations
 
 import os

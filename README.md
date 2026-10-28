@@ -1,6 +1,6 @@
-# Intel AI Studio
+# LocArc
 
-[![CI](https://github.com/Asahi-Prv/i-AI-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Asahi-Prv/i-AI-Studio/actions/workflows/ci.yml)
+[![CI](https://github.com/Asahi-Prv/locarc/actions/workflows/ci.yml/badge.svg)](https://github.com/Asahi-Prv/locarc/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![Platform: Windows | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)](#requirements)
@@ -10,8 +10,13 @@
 > sponsored by Intel Corporation**. "Intel" and "OpenVINO" are trademarks of Intel Corporation,
 > used here only to describe compatibility. This is not an official Intel product.
 
-A desktop app for [OpenVINO Model Server (OVMS)](https://github.com/openvinotoolkit/model_server).
+**LocArc** is a local-first desktop studio for
+[OpenVINO Model Server (OVMS)](https://github.com/openvinotoolkit/model_server).
 It manages the whole lifecycle in a native WebView2 window:
+
+> [!NOTE]
+> **LocArc** was previously called **Intel AI Studio**. Existing `data` folders keep working;
+> see [Upgrading from Intel AI Studio](#upgrading-from-intel-ai-studio).
 
 - **Install OVMS runtimes** – stable (GitHub releases) or weekly builds, `python_on` packages only,
   with SHA-256 verification when available.
@@ -38,7 +43,7 @@ It manages the whole lifecycle in a native WebView2 window:
 
 ## Install
 
-Every [release](https://github.com/Asahi-Prv/i-AI-Studio/releases) publishes Windows and Linux
+Every [release](https://github.com/Asahi-Prv/locarc/releases) publishes Windows and Linux
 builds. Each bundles its own Python runtime and stores data (runtimes, models, chats, settings) in a
 `data` folder next to the executable.
 
@@ -46,25 +51,25 @@ builds. Each bundles its own Python runtime and stores data (runtimes, models, c
 
 | Build | Download | How it runs |
 | --- | --- | --- |
-| **Installer** (recommended) | `Intel-AI-Studio-Setup-x64.exe` | Installs per-user (no admin rights), adds Start Menu and optional desktop shortcuts, and opens the UI in a native desktop window (WebView2). |
-| **Portable** | `Intel-AI-Studio-windows-x64.zip` | Extract it anywhere and run `Intel-AI-Studio.exe`; the app opens in a native desktop window (no installation required). |
+| **Installer** (recommended) | `LocArc-Setup-x64.exe` | Installs per-user (no admin rights), adds Start Menu and optional desktop shortcuts, and opens the UI in a native desktop window (WebView2). |
+| **Portable** | `LocArc-windows-x64.zip` | Extract it anywhere and run `LocArc.exe`; the app opens in a native desktop window (no installation required). |
 
 Both builds use the same executable; the installer just adds shortcuts and an uninstaller. Windows
 may show a SmartScreen warning because the binaries are unsigned (*More info → Run anyway*).
 
 ### Linux (Ubuntu 24.04)
 
-Download `Intel-AI-Studio-linux-x64.tar.gz`. It is a portable folder that also ships a per-user
+Download `LocArc-linux-x64.tar.gz`. It is a portable folder that also ships a per-user
 installer:
 
 ```bash
-tar -xzf Intel-AI-Studio-linux-x64.tar.gz
-cd Intel-AI-Studio
+tar -xzf LocArc-linux-x64.tar.gz
+cd LocArc
 ./install.sh          # launcher + application-menu entry, no root required
-./Intel-AI-Studio     # or run it directly without installing
+./LocArc          # or run it directly without installing
 ```
 
-`install.sh` copies the app into `~/.local/share/intel-ai-studio`, adds an `intel-ai-studio`
+`install.sh` copies the app into `~/.local/share/locarc`, adds a `locarc`
 command in `~/.local/bin`, and registers a `.desktop` entry. `./uninstall.sh` removes the app but
 keeps your `data`; add `--purge` to delete the data too.
 
@@ -91,16 +96,16 @@ opens in your default browser instead, and everything keeps working.
 Windows:
 
 ```bat
-git clone https://github.com/Asahi-Prv/i-AI-Studio.git
-cd intel-ai-studio
+git clone https://github.com/Asahi-Prv/locarc.git
+cd locarc
 run.bat
 ```
 
 Linux:
 
 ```bash
-git clone https://github.com/Asahi-Prv/i-AI-Studio.git
-cd intel-ai-studio
+git clone https://github.com/Asahi-Prv/locarc.git
+cd locarc
 ./run.sh
 ```
 
@@ -135,7 +140,7 @@ Windows:
 build.bat
 ```
 
-The result is `dist\Intel-AI-Studio\Intel-AI-Studio.exe`, a portable folder with the bundled
+The result is `dist\LocArc\LocArc.exe`, a portable folder with the bundled
 Python runtime. Verify it before shipping:
 
 ```powershell
@@ -148,19 +153,19 @@ Linux:
 ./build.sh
 ```
 
-The result is `dist/Intel-AI-Studio/Intel-AI-Studio` (plus `install.sh`/`uninstall.sh`), a portable
+The result is `dist/LocArc/LocArc` (plus `install.sh`/`uninstall.sh`), a portable
 folder with the bundled Python runtime. Verify it with:
 
 ```bash
-scripts/smoke-test.sh dist/Intel-AI-Studio/Intel-AI-Studio
+scripts/smoke-test.sh dist/LocArc/LocArc
 ```
 
 The app keeps its data in a `data` folder next to the executable. To distribute, package the whole
-`dist/Intel-AI-Studio` folder — on Windows as a zip (users extract it and run the exe; SmartScreen
+`dist/LocArc` folder — on Windows as a zip (users extract it and run the exe; SmartScreen
 may warn because it is unsigned), on Linux as a `tar.gz` (users extract it and run `./install.sh`
 or the executable directly).
 
-Build configuration lives in `intel_ai_studio.spec` (datas, windowed mode, no UPX). CI builds the
+Build configuration lives in `locarc.spec` (datas, windowed mode, no UPX). CI builds the
 same spec for Windows and Linux on tags matching `v*`, smoke-tests each executable, and attaches
 all artifacts to the GitHub release (see `.github/workflows/build.yml`).
 
@@ -213,7 +218,7 @@ All state lives in one data directory:
 
 - Source checkout: `<project>/data/`
 - Packaged exe: `<folder of exe>/data/`
-- Override with the `AI_STUDIO_DATA` environment variable.
+- Override with the `LOCARC_DATA` environment variable (`AI_STUDIO_DATA` is still accepted).
 
 | Path | Contents |
 | --- | --- |
@@ -250,9 +255,9 @@ All state lives in one data directory:
 ## Project structure
 
 ```
-ai_studio.py          Entry point (also used by PyInstaller)
-intel_ai_studio.spec  PyInstaller build configuration (onedir, windowed)
-build.bat / build.sh  Build scripts (Windows / Linux)
+locarc.py              Entry point (also used by PyInstaller)
+locarc.spec            PyInstaller build configuration (onedir, windowed)
+build.bat / build.sh   Build scripts (Windows / Linux)
 run.bat / run.sh      Development launchers (Windows / Linux)
 app/
   main.py             FastAPI routes, OVMS proxy, static hosting
@@ -276,7 +281,7 @@ tests/                Backend API tests (pytest)
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-python -m compileall -q app ai_studio.py
+python -m compileall -q app locarc.py
 ```
 
 Pull requests run the same checks in CI on Windows and Linux. Windows and Linux executables are
@@ -288,11 +293,11 @@ Packaged builds check GitHub Releases on startup (at most once a day) and show a
 the **Settings** tab when a newer version exists. **Settings → Updates** can check manually and
 update in one click:
 
-1. The new platform archive (`Intel-AI-Studio-windows-x64.zip` /
-   `Intel-AI-Studio-linux-x64.tar.gz`) is downloaded and verified against the release's
+1. The new platform archive (`LocArc-windows-x64.zip` /
+   `LocArc-linux-x64.tar.gz`) is downloaded and verified against the release's
    `SHA256SUMS.txt`.
 2. The app stages the new build, exits, and a small detached helper replaces the app files
-   (`Intel-AI-Studio.exe` / `Intel-AI-Studio` and `_internal`), then restarts the app. The helper
+   (`LocArc.exe` / `LocArc` and `_internal`), then restarts the app. The helper
    is PowerShell + robocopy on Windows and a POSIX `sh` script on Linux.
 
 Your `data` folder (runtimes, models, chats, settings) is never touched. The startup check can be
@@ -301,6 +306,20 @@ disabled in the same card. When running from source, use `git pull` instead.
 > Builds up to **v1.4.0** could fail to apply an update automatically (the helper script was
 > started in a way that stopped it from running after the app exited). If an update does not
 > restart the app, download the latest release once manually — self-updates work from v1.4.1 on.
+
+## Upgrading from Intel AI Studio
+
+The data layout has not changed: the app still uses the `data` folder next to the executable.
+Portable builds keep using it when you extract the new version over the old folder. The Windows
+installer keeps the previous installation folder and its `data` when upgrading (the Inno Setup
+App ID is unchanged). On Linux, `install.sh` copies `~/.local/share/intel-ai-studio/data` to
+`~/.local/share/locarc/data` the first time it runs. The old `AI_STUDIO_DATA` environment
+variable is still accepted as an alias for `LOCARC_DATA`.
+
+The first LocArc release also publishes the legacy `Intel-AI-Studio-*` asset names and app layout
+so builds from before the rename can update themselves once while the old repository name is
+still active. If an older build no longer offers the update after the repository rename, download
+v2.0.0 manually once.
 
 ## Contributing
 

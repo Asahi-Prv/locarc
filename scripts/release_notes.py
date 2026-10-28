@@ -2,7 +2,7 @@
 """Generate categorized Markdown release notes from conventional commits.
 
 Usage examples:
-    python scripts/release_notes.py --from v1.0 --to v1.0.1 --repo Asahi-Prv/i-AI-Studio
+    python scripts/release_notes.py --from v1.0 --to v1.0.1 --repo Asahi-Prv/locarc
     python scripts/release_notes.py --to HEAD --install
 """
 from __future__ import annotations
@@ -33,23 +33,23 @@ INSTALL_SECTION = """\
 
 ### Windows
 
-**Installer (recommended)** — run `Intel-AI-Studio-Setup-x64.exe`. It installs per-user (no admin
+**Installer (recommended)** — run `LocArc-Setup-x64.exe`. It installs per-user (no admin
 rights), adds Start Menu and optional desktop shortcuts, and opens the app in a native desktop
 window.
 
-**Portable** — download `Intel-AI-Studio-windows-x64.zip`, extract it anywhere and run
-`Intel-AI-Studio.exe`; the app opens in a native desktop window (no installation required).
+**Portable** — download `LocArc-windows-x64.zip`, extract it anywhere and run
+`LocArc.exe`; the app opens in a native desktop window (no installation required).
 
 Windows may show a SmartScreen warning because the executables are unsigned — choose
 **More info → Run anyway**.
 
 ### Linux (Ubuntu 24.04)
 
-Download `Intel-AI-Studio-linux-x64.tar.gz`, then either run it from anywhere or install it per-user:
+Download `LocArc-linux-x64.tar.gz`, then either run it from anywhere or install it per-user:
 
 ```bash
-tar -xzf Intel-AI-Studio-linux-x64.tar.gz
-cd Intel-AI-Studio
+tar -xzf LocArc-linux-x64.tar.gz
+cd LocArc
 ./install.sh        # adds a launcher and an application-menu entry (no root needed)
 ```
 

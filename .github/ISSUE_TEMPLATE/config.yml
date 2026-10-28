@@ -1,10 +1,10 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://github.com/Asahi-Prv/i-AI-Studio#readme
+    url: https://github.com/Asahi-Prv/locarc#readme
     about: Install, usage, configuration, and troubleshooting live in the README.
   - name: Security vulnerability
-    url: https://github.com/Asahi-Prv/i-AI-Studio/security/advisories/new
+    url: https://github.com/Asahi-Prv/locarc/security/advisories/new
     about: Please report vulnerabilities privately instead of opening a public issue.
   - name: OpenVINO Model Server issues
     url: https://github.com/openvinotoolkit/model_server/issues
