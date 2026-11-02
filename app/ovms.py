@@ -39,6 +39,10 @@ FILETREE_URL = "https://storage.openvinotoolkit.org/filetree.json"
 
 IS_WINDOWS = os.name == "nt"
 ASSET_RE = re.compile(r"^ovms_(windows|ubuntu24|ubuntu22|redhat)_([0-9][\w.]*)_python_on\.(zip|tar\.gz)$")
+# Weekly builds switched to unified packages with 2026.5.0.eec7daac4 (October 2026): Python
+# is an optional dependency detected at runtime, so the python_on/python_off split is gone
+# and the assets carry no version: ovms_windows.zip / ovms_ubuntu24.tar.gz.
+UNIFIED_ASSET_RE = re.compile(r"^ovms_(windows|ubuntu24|ubuntu26|ubuntu22|redhat9?)\.(zip|tar\.gz)$")
 
 ALLOWED_URL_PREFIXES = (
     "https://github.com/openvinotoolkit/model_server/releases/download/",
@@ -48,6 +52,7 @@ ALLOWED_URL_PREFIXES = (
 _UA = {"User-Agent": "locarc"}
 _FILETREE_TTL = 1800
 _filetree_cache: dict = {"t": 0.0, "data": None}
+_latest_version_cache: dict = {"t": 0.0, "value": None}
 
 
 def _platform_ok(os_part: str, ext: str) -> bool:
@@ -58,6 +63,24 @@ def _platform_ok(os_part: str, ext: str) -> bool:
 
 def is_allowed_url(url: str) -> bool:
     return any(url.startswith(p) for p in ALLOWED_URL_PREFIXES)
+
+
+def _sha256_name(names: set[str], fname: str, ext: str) -> str | None:
+    """Name of the sha256 sidecar, in both layouts seen upstream.
+
+    ``ovms_windows_<...>_python_on.zip.sha256`` and the unified ``ovms_windows.sha256``.
+    """
+    stem = fname[: -(len(ext) + 1)]
+    for cand in (fname + ".sha256", stem + ".sha256"):
+        if cand in names:
+            return cand
+    return None
+
+
+def _asset_sha_url(download_url: str, sha_name: str | None) -> str | None:
+    if not sha_name:
+        return None
+    return download_url.rsplit("/", 1)[0] + "/" + quote(sha_name)
 
 
 def list_versions(channel: str, lang: str | None = None) -> list[dict]:
@@ -76,18 +99,26 @@ def _stable_versions() -> list[dict]:
                 continue
             assets = rel.get("assets", [])
             names = {a["name"] for a in assets}
+            tag = (rel.get("tag_name") or "").lstrip("v")
             for a in assets:
                 m = ASSET_RE.match(a["name"])
-                if not m or not _platform_ok(m.group(1), m.group(3)):
+                if m:
+                    os_part, version, ext = m.group(1), m.group(2), m.group(3)
+                else:  # unified asset names carry no version; take it from the release tag
+                    m = UNIFIED_ASSET_RE.match(a["name"])
+                    if not m:
+                        continue
+                    os_part, ext, version = m.group(1), m.group(2), tag
+                if not _platform_ok(os_part, ext):
                     continue
-                sha = a["name"] + ".sha256"
+                sha = _sha256_name(names, a["name"], ext)
                 out.append({
                     "channel": "stable",
-                    "label": f"{rel.get('tag_name')} ({m.group(2)})",
-                    "version": m.group(2),
+                    "label": f"{rel.get('tag_name')} ({version})",
+                    "version": version,
                     "url": a["browser_download_url"],
                     "size": a["size"],
-                    "sha256_url": a["browser_download_url"] + ".sha256" if sha in names else None,
+                    "sha256_url": _asset_sha_url(a["browser_download_url"], sha),
                     "published_at": rel.get("published_at"),
                 })
         return out
@@ -104,6 +135,29 @@ def _filetree() -> dict:
     return _filetree_cache["data"]
 
 
+def _latest_version() -> str | None:
+    """Base version of the ``latest`` weekly alias, from its version.txt (cached)."""
+    now = time.time()
+    if _latest_version_cache["value"] is None or now - _latest_version_cache["t"] > _FILETREE_TTL:
+        try:
+            with httpx.Client(timeout=15, headers=_UA) as c:
+                r = c.get(WEEKLY_BASE + "latest/version.txt")
+                r.raise_for_status()
+                m = re.search(r"\b(\d{4}\.\d+\.\d+)", r.text)
+                if m:
+                    _latest_version_cache["value"] = m.group(1)
+                    _latest_version_cache["t"] = now
+        except Exception:
+            pass
+    return _latest_version_cache["value"]
+
+
+def _dir_version(dir_name: str) -> str | None:
+    """Base version from a weekly directory name: ``2026.5.0.3b33556ed`` -> ``2026.5.0``."""
+    m = re.match(r"^(\d{4}\.\d+\.\d+)(?:[._][0-9a-f]+)?$", dir_name)
+    return m.group(1) if m else None
+
+
 def _weekly_versions(lang: str | None = None) -> list[dict]:
     node = _filetree()
     for part in ("repositories", "openvino_model_server", "packages", "weekly"):
@@ -114,20 +168,32 @@ def _weekly_versions(lang: str | None = None) -> list[dict]:
     for d in node.get("children", []):
         if d.get("type") != "directory":
             continue
+        dir_name = d["name"]
         names = {f["name"] for f in d.get("children", [])}
         for f in d.get("children", []):
-            m = ASSET_RE.match(f.get("name", ""))
-            if not m or not _platform_ok(m.group(1), m.group(3)):
+            fname = f.get("name", "")
+            m = ASSET_RE.match(fname)
+            if m:
+                os_part, version, ext = m.group(1), m.group(2), m.group(3)
+            else:
+                m = UNIFIED_ASSET_RE.match(fname)
+                if not m:
+                    continue
+                os_part, ext = m.group(1), m.group(2)
+                # Unified assets carry no version: use version.txt for `latest`, else the dir name.
+                version = _latest_version() if dir_name == "latest" else _dir_version(dir_name)
+                version = version or ""
+            if not _platform_ok(os_part, ext):
                 continue
-            base = WEEKLY_BASE + quote(d["name"]) + "/" + quote(f["name"])
-            label = d["name"]
+            base = WEEKLY_BASE + quote(dir_name)
+            sha = _sha256_name(names, fname, ext)
             out.append({
                 "channel": "weekly",
-                "label": f"{label} -> {m.group(2)}" if d["name"] == "latest" else label,
-                "version": m.group(2),
-                "url": base,
+                "label": f"{dir_name} -> {version}" if dir_name == "latest" and version else dir_name,
+                "version": version,
+                "url": base + "/" + quote(fname),
                 "size": f.get("size"),
-                "sha256_url": base + ".sha256" if f["name"] + ".sha256" in names else None,
+                "sha256_url": base + "/" + quote(sha) if sha else None,
                 "published_at": f.get("last modified"),
             })
     out.sort(key=lambda e: e.get("published_at") or "", reverse=True)
