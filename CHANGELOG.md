@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-11-03
+
+### Fixed
+
+- Weekly OVMS builds newer than 2026-09-14 are listed again: upstream switched weekly packages
+  to a unified build (Python is now an optional dependency detected at runtime), so the files
+  dropped the version and the `_python_on` suffix (`ovms_windows.zip`, `ovms_ubuntu24.tar.gz`).
+  The old filename pattern matched nothing and every newer weekly build silently disappeared
+  from the version list. Both naming schemes are parsed now, the `latest` entry takes its
+  version from `version.txt`, and sha256 sidecars are resolved in both layouts
+  (`<file>.sha256` and `ovms_windows.sha256`). Unified asset names are also accepted on the
+  stable channel, where the version comes from the release tag.
+
 ## [2.0.1] - 2026-10-29
 
 ### Fixed
