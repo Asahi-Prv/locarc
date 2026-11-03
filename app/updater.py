@@ -215,53 +215,82 @@ def _ps_quote(text) -> str:
     return "'" + str(text).replace("'", "''") + "'"
 
 
-def write_update_script(staged_app_dir: Path, app_dir: Path, exe_name: str,
+def write_update_script(staged_app_dir: Path, app_dir: Path, running_exe: str,
                         base_dir: Path, script_path: Path) -> None:
     """Write the detached updater script.
 
     The script waits until the running executable is no longer locked. Waiting on
-    the process id alone is not reliable because Windows reuses PIDs.
+    the process id alone is not reliable because Windows reuses PIDs. ``_internal``
+    is mirrored so files from older versions disappear, and both executable names
+    are refreshed from the new build before restarting.
     """
-    exe_path = app_dir / exe_name
-    script_path.write_text(
-        "$ErrorActionPreference = 'SilentlyContinue'\n"
-        "# Wait until the app's executable is no longer locked (PID-reuse safe).\n"
-        f"$exe = {_ps_quote(exe_path)}\n"
-        "$deadline = (Get-Date).AddSeconds(120)\n"
-        "while ((Get-Date) -lt $deadline) {\n"
-        "    try { $fs = [System.IO.File]::Open($exe, 'Open', 'ReadWrite', 'None'); $fs.Close(); break }\n"
-        "    catch { Start-Sleep -Milliseconds 500 }\n"
-        "}\n"
-        "Start-Sleep -Milliseconds 800\n"
+    exe_path = app_dir / running_exe
+    staged_exe = next((name for name in (exe_name(), legacy_exe_name())
+                       if (staged_app_dir / name).is_file()), None)
+    lines = [
+        "$ErrorActionPreference = 'SilentlyContinue'\n",
+        "# Wait until the app's executable is no longer locked (PID-reuse safe).\n",
+        f"$exe = {_ps_quote(exe_path)}\n",
+        "$deadline = (Get-Date).AddSeconds(120)\n",
+        "while ((Get-Date) -lt $deadline) {\n",
+        "    try { $fs = [System.IO.File]::Open($exe, 'Open', 'ReadWrite', 'None'); $fs.Close(); break }\n",
+        "    catch { Start-Sleep -Milliseconds 500 }\n",
+        "}\n",
+        "Start-Sleep -Milliseconds 800\n",
         f"robocopy {_ps_quote(staged_app_dir)} {_ps_quote(app_dir)} "
-        "/E /NFL /NDL /NJH /NJS /R:10 /W:1 | Out-Null\n"
-        f"Start-Process -FilePath $exe -WorkingDirectory {_ps_quote(app_dir)}\n"
-        "Start-Sleep -Milliseconds 500\n"
-        f"Remove-Item -LiteralPath {_ps_quote(base_dir)} -Recurse -Force\n"
+        "/E /NFL /NDL /NJH /NJS /R:10 /W:1 | Out-Null\n",
+    ]
+    staged_internal = staged_app_dir / "_internal"
+    if staged_internal.is_dir():
+        lines.append(
+            "# Mirror the runtime folder so files of older versions do not linger.\n"
+            f"robocopy {_ps_quote(staged_internal)} {_ps_quote(app_dir / '_internal')} "
+            "/MIR /NFL /NDL /NJH /NJS /R:10 /W:1 | Out-Null\n"
+        )
+    if staged_exe:
+        new_exe = app_dir / staged_exe
+        legacy_path = app_dir / legacy_exe_name()
+        lines.append("# Keep the executables in sync so any shortcut starts this build.\n")
+        lines.append(f"$new = {_ps_quote(new_exe)}\n")
+        lines.append("if ($exe -ne $new) { Copy-Item -LiteralPath $new -Destination $exe -Force }\n")
+        if staged_exe != legacy_exe_name():
+            lines.append(
+                f"if (Test-Path -LiteralPath {_ps_quote(legacy_path)}) "
+                f"{{ Copy-Item -LiteralPath $new -Destination {_ps_quote(legacy_path)} -Force }}\n"
+            )
+    lines += [
+        f"Start-Process -FilePath $exe -WorkingDirectory {_ps_quote(app_dir)}\n",
+        "Start-Sleep -Milliseconds 500\n",
+        f"Remove-Item -LiteralPath {_ps_quote(base_dir)} -Recurse -Force\n",
         "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force\n",
-        encoding="utf-8",
-    )
+    ]
+    script_path.write_text("".join(lines), encoding="utf-8")
 
 
 def _sh_quote(text) -> str:
     return "'" + str(text).replace("'", "'\\''") + "'"
 
 
-def write_update_script_posix(staged_app_dir: Path, app_dir: Path, exe_name: str,
+def write_update_script_posix(staged_app_dir: Path, app_dir: Path, running_exe: str,
                               base_dir: Path, script_path: Path, pid: int) -> None:
     """Write the detached POSIX updater script (Linux/macOS).
 
     The script waits until this process exits (``kill -0``), replaces the app
-    files in place, relaunches the executable detached from the shell, and then
-    removes the staging directory and itself.
+    files in place, keeps the running and pre-rename executable names in sync
+    with the new build, relaunches the executable detached from the shell, and
+    then removes the staging directory and itself.
     """
+    staged_exe = next((name for name in (exe_name(), legacy_exe_name())
+                       if (staged_app_dir / name).is_file()), None) or running_exe
+    legacy = legacy_exe_name()
     script_path.write_text(
         "#!/bin/sh\n"
         "set -u\n"
         f"PID={pid}\n"
         f"STAGED={_sh_quote(staged_app_dir)}\n"
         f"APPDIR={_sh_quote(app_dir)}\n"
-        f"EXE={_sh_quote(exe_name)}\n"
+        f"EXE={_sh_quote(running_exe)}\n"
+        f"STAGED_EXE={_sh_quote(staged_exe)}\n"
         f"BASE={_sh_quote(base_dir)}\n"
         "# Wait for the running app to exit (PID reuse within the timeout is unlikely).\n"
         "i=0\n"
@@ -274,6 +303,13 @@ def write_update_script_posix(staged_app_dir: Path, app_dir: Path, exe_name: str
         "# Replace the app files, keeping the user's 'data' folder intact.\n"
         "rm -rf \"$APPDIR/_internal\"\n"
         "cp -a \"$STAGED\"/. \"$APPDIR\"/\n"
+        "# Keep the executables in sync so any shortcut starts this build.\n"
+        "if [ -f \"$APPDIR/$STAGED_EXE\" ]; then\n"
+        "    if [ \"$EXE\" != \"$STAGED_EXE\" ]; then cp -f \"$APPDIR/$STAGED_EXE\" \"$APPDIR/$EXE\"; fi\n"
+        f"    if [ -f \"$APPDIR/{legacy}\" ] && [ \"$STAGED_EXE\" != {_sh_quote(legacy)} ]; then\n"
+        f"        cp -f \"$APPDIR/$STAGED_EXE\" \"$APPDIR/{legacy}\"\n"
+        "    fi\n"
+        "fi\n"
         "# Restart detached so the update outlives this script and its terminal.\n"
         "if command -v setsid >/dev/null 2>&1; then\n"
         "    setsid \"$APPDIR/$EXE\" >/dev/null 2>&1 &\n"

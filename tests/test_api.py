@@ -640,6 +640,41 @@ def test_update_script_posix(tmp_path):
         assert script.stat().st_mode & stat.S_IXUSR  # executable
 
 
+def test_update_script_mirrors_internal_and_syncs_exe_names(tmp_path):
+    from app import updater
+    from app.updater import write_update_script
+    staged = tmp_path / "staged"
+    (staged / "_internal").mkdir(parents=True)
+    (staged / updater.exe_name()).write_bytes(b"new")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / updater.LEGACY_EXE_NAME).write_bytes(b"old")
+    script = tmp_path / "apply.ps1"
+    write_update_script(staged, app, updater.LEGACY_EXE_NAME, tmp_path / "updates" / "v1", script)
+    text = script.read_text(encoding="utf-8")
+    assert "/MIR" in text                        # stale runtime files are removed
+    assert "$exe -ne $new" in text               # the restarted exe is the new copy
+    assert updater.LEGACY_EXE_NAME in text       # the pre-rename name is refreshed too
+
+
+def test_update_script_posix_syncs_exe_names(tmp_path):
+    from app import updater
+    from app.updater import write_update_script_posix
+    staged = tmp_path / "staged"
+    staged.mkdir()
+    (staged / updater.exe_name()).write_bytes(b"new")
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / updater.LEGACY_EXE_NAME).write_bytes(b"old")
+    script = tmp_path / "apply.sh"
+    write_update_script_posix(staged, app, updater.LEGACY_EXE_NAME,
+                              tmp_path / "updates" / "v1", script, 4321)
+    text = script.read_text(encoding="utf-8")
+    assert "STAGED_EXE" in text
+    assert "cp -f" in text                       # syncs the running/lib exec names
+    assert updater.LEGACY_EXE_NAME in text
+
+
 def test_free_ram_detection_is_positive():
     from app.main import _free_ram_gb
     assert _free_ram_gb() > 0
