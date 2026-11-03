@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-11-03
+
+### Fixed
+
+- Self-updates no longer leave a mixed old/new installation behind. The update copied the
+  new files over the old build but kept a pre-rename executable (`Intel-AI-Studio.exe`) and
+  restarted it, so the stale executable loaded the updated `pydantic-core` and refused to
+  start (`SystemError: The installed pydantic-core version (...) is incompatible ...`).
+  Updates now mirror the bundled `_internal` folder (removing files that older versions left
+  behind) and refresh both executable names from the new build before restarting, so a
+  shortcut to either name always starts the updated app.
+
 ## [2.0.2] - 2026-11-03
 
 ### Fixed
