@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-05
+
 ### Added
 
 - Statistics tab: every chat and image-generation run served through the UI proxy is
@@ -16,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`stream_options.include_usage`, injected by the proxy); when a server does not report
   usage the record is marked approximate. Nothing is ever sent over the network, and
   recording can be switched off in the tab (`stats_enabled` in `config.json`).
+- Multi-GPU: the device picker keeps per-adapter entries (`GPU.1`, `GPU.2`, …) instead of
+  collapsing every adapter into a single `GPU`, so each card can be targeted explicitly.
 
 ## [2.0.3] - 2026-11-03
 
