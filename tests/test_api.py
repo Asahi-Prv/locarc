@@ -523,7 +523,8 @@ def test_config_cache_invalidates_on_change():
 
 def test_normalize_devices():
     from app.ovms import normalize_devices
-    assert normalize_devices(["GPU.0", "GPU.1", "CPU", "NPU", "cpu"]) == ["CPU", "GPU", "NPU"]
+    assert normalize_devices(["GPU.0", "GPU.1", "GPU.02", "CPU", "NPU", "cpu", "gpu.1"]) == \
+        ["CPU", "GPU", "GPU.1", "GPU.2", "NPU"]
     assert normalize_devices([]) == []
 
 

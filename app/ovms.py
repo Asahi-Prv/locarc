@@ -529,14 +529,31 @@ def _devices_from_library(lib_dir: Path) -> list[str]:
 
 
 def normalize_devices(devices: list[str]) -> list[str]:
-    """Normalize OpenVINO device names (``GPU.0`` -> ``GPU``), ordered CPU/GPU/NPU."""
+    """Normalize OpenVINO device names for the device picker.
+
+    ``GPU.0`` collapses to ``GPU`` (the first adapter); further adapters keep
+    their index (``GPU.1``, ``GPU.2``, ...) so every card on a multi-GPU host
+    stays targetable via ``--target_device GPU.N``. Ordered CPU/GPU/NPU.
+    """
     order = ("CPU", "GPU", "NPU")
     seen: list[str] = []
     for name in devices:
-        base = str(name).split(".", 1)[0].strip().upper()
-        if base and base not in seen:
-            seen.append(base)
-    return sorted(seen, key=lambda d: (order.index(d) if d in order else len(order), d))
+        raw = str(name).strip().upper()
+        if not raw:
+            continue
+        base, _, index = raw.partition(".")
+        if base == "GPU" and index.isdigit() and int(index) > 0:
+            label = f"GPU.{int(index)}"
+        else:
+            label = base
+        if label and label not in seen:
+            seen.append(label)
+
+    def rank(item: str) -> tuple[int, str]:
+        head = item.split(".", 1)[0]
+        return (order.index(head) if head in order else len(order), item)
+
+    return sorted(seen, key=rank)
 
 
 def cached_devices(runtime_id: str) -> list[str] | None:
