@@ -18,6 +18,7 @@
     <div class="sidebottom">
       <button class="tabbtn active" data-view="chat" data-i18n="nav.chat">チャット</button>
       <button class="tabbtn" data-view="models" data-i18n="nav.models">モデル管理</button>
+      <button class="tabbtn" data-view="stats" data-i18n="nav.stats">利用統計</button>
       <button class="tabbtn" data-view="settings"><span data-i18n="nav.settings">設定</span><span id="settingsDot" class="dot hidden"></span></button>
       <div class="sidefoot">
         <button id="btnLang" class="btn small ghost" data-i18n-title="nav.switch_lang">English</button>
@@ -157,6 +158,34 @@
           <h2><span data-i18n="models.list_title">ダウンロード済みモデル</span> <button id="btnModelsReload" class="btn small" data-i18n="common.refresh">更新</button></h2>
           <div id="modelsList" class="list muted" data-i18n="common.none">なし</div>
         </div>
+      </div>
+    </section>
+
+    <!-- ======================= STATS ======================= -->
+    <section id="view-stats" class="view">
+      <div class="card">
+        <h2><span data-i18n="stats.title">利用統計</span>
+          <button id="btnStatsReload" class="btn small" data-i18n="common.refresh">更新</button>
+          <button id="btnStatsClear" class="btn small danger" data-i18n="common.clear">クリア</button>
+        </h2>
+        <p class="muted" data-i18n="stats.note">この端末の中だけに記録されます。ネットワークへは一切送信しません。</p>
+        <div class="row">
+          <label><input id="chkStatsEnabled" type="checkbox" checked> <span data-i18n="stats.enable">利用統計を記録する</span></label>
+          <select id="selStatsDays">
+            <option value="7" data-i18n="stats.days7">直近7日間</option>
+            <option value="30" selected data-i18n="stats.days30">直近30日間</option>
+            <option value="90" data-i18n="stats.days90">直近90日間</option>
+            <option value="365" data-i18n="stats.days365">直近1年間</option>
+          </select>
+        </div>
+        <div id="statsCards" class="stat-cards"></div>
+        <p id="statsChartNote" class="muted small hidden" data-i18n="stats.chart_note">1日ごとの生成トークン量（棒にカーソルを合わせると詳細）</p>
+        <div id="statsChart" class="stats-chart"></div>
+        <h3 class="mt" data-i18n="stats.by_model">モデル別</h3>
+        <div id="statsModels" class="list muted"></div>
+        <p class="muted small" data-i18n="stats.approx_note">「~」はトークン数の概算です（サーバーがusageを返さない場合）。</p>
+        <h3 class="mt" data-i18n="stats.recent">最近の実行</h3>
+        <div id="statsRecent" class="list muted"></div>
       </div>
     </section>
 

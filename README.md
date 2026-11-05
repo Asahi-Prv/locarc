@@ -34,6 +34,11 @@ It manages the whole lifecycle in a native WebView2 window:
 - **Chat** – streaming chat with Markdown rendering, thinking-content support, auto-generated
   titles, per-chat generation parameters, and persisted chat history.
 - **Generate images** – for `image_generation` models.
+- **Usage statistics** – a Statistics tab records every run locally (model, device, OVMS
+  runtime, prompt/completion tokens, TTFT, tok/s, success rate) with per-model breakdowns and
+  a daily chart. Token counts are exact when the server reports usage and marked approximate
+  otherwise. Stored under `data/stats/`; nothing is ever sent over the network, and recording
+  can be switched off in the tab.
 - **Serve an API** – OVMS itself exposes OpenAI-compatible REST and gRPC endpoints; the UI can
   manage an optional Bearer API key for external clients.
 - **Self-update** – packaged builds check GitHub Releases at startup (at most once a day) and can

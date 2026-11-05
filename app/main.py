@@ -1,6 +1,8 @@
 """FastAPI backend for the LocArc UI."""
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import queue
 import subprocess
@@ -19,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from . import chats as chatsvc
 from . import models as modelsvc
 from . import ovms, updater
+from . import stats as statsvc
 from . import tasks as taskmod
 from .config import (
     APP_NAME,
@@ -540,6 +543,20 @@ def api_chat_delete(cid: str, request: Request):
     return {"ok": True}
 
 
+# ------------------------------------------------------------------ usage statistics
+
+
+@app.get("/api/stats/summary")
+def api_stats_summary(days: int = 30, recent: int = 25):
+    return statsvc.summary(days=days, recent=recent)
+
+
+@app.delete("/api/stats")
+def api_stats_clear():
+    statsvc.clear()
+    return {"ok": True}
+
+
 # ------------------------------------------------------------------ proxy to OVMS (avoids CORS)
 
 _proxy_client: httpx.AsyncClient | None = None
@@ -553,6 +570,52 @@ def _client() -> httpx.AsyncClient:
     if _proxy_client is None:
         _proxy_client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=5.0))
     return _proxy_client
+
+
+_STATS_CHAT_PATHS = ("v3/chat/completions", "v3/completions")
+_STATS_IMAGE_PATHS = ("v3/images/generations",)
+
+
+def _stats_ctx(path: str, body: bytes, st: dict, cfg: dict) -> tuple[bytes, dict | None]:
+    """Instrument one proxied request for the local statistics store.
+
+    Returns the body to forward and a capture context, or ``(body, None)`` when
+    the request is not recorded (statistics disabled, one-shot helper calls
+    without ``stream``, non-text-generation traffic). Recorded chat requests get
+    their body rewritten to ask OVMS for exact token usage
+    (``stream_options.include_usage``).
+    """
+    if cfg.get("stats_enabled", True) is False:
+        return body, None
+    chat = path in _STATS_CHAT_PATHS
+    image = path in _STATS_IMAGE_PATHS
+    if not (chat or image):
+        return body, None
+    try:
+        data = json.loads(body.decode("utf-8")) if body else {}
+    except (ValueError, UnicodeDecodeError):
+        return body, None
+    if not isinstance(data, dict):
+        return body, None
+    ctx = {"kind": "image" if image else "chat",
+           "model": str(data.get("model") or st.get("model") or ""),
+           "mode": str(st.get("mode") or ""),
+           "device": str(st.get("device") or ""),
+           "runtime": str(st.get("runtime_id") or "")}
+    if image:
+        return body, ctx
+    # Auto-title and other one-shot helper calls (stream=false) are not recorded.
+    if data.get("stream") is not True or st.get("mode") != "text_generation":
+        return body, None
+    ctx["stream"] = True
+    opts = data.get("stream_options")
+    if not isinstance(opts, dict):
+        opts = {}
+    if opts.get("include_usage") is not True:
+        opts["include_usage"] = True
+        data["stream_options"] = opts
+        return json.dumps(data, ensure_ascii=False).encode("utf-8"), ctx
+    return body, ctx
 
 
 @app.api_route("/proxy/{path:path}", methods=["GET", "POST"])
@@ -573,17 +636,45 @@ async def api_proxy(path: str, request: Request):
     if api_key:
         headers["authorization"] = f"Bearer {api_key}"  # inject; browsers never see the key
     body = await request.body()
+    body, cap = _stats_ctx(path, body, st, cfg)
     req = _client().build_request(request.method, url, headers=headers, content=body)
-    r = await _client().send(req, stream=True)
+    sent_at = time.perf_counter()
+    try:
+        r = await _client().send(req, stream=True)
+    except Exception as e:
+        if cap is not None:
+            statsvc.record({**cap, "ok": False, "error": f"connect {type(e).__name__}"})
+        raise
+    probe = statsvc.StreamProbe(sent_at) if cap is not None and cap["kind"] == "chat" else None
 
     async def gen():
+        error: BaseException | None = None
         try:
             # aiter_bytes, not aiter_raw: decode content-encoding so the UI never
             # receives compressed bytes (we do not forward the encoding header).
             async for chunk in r.aiter_bytes():
+                if probe is not None:
+                    probe.feed(chunk)
                 yield chunk
+        except BaseException as e:
+            error = e
+            raise
         finally:
             await r.aclose()
+            if cap is not None:
+                run = dict(cap)
+                run["ok"] = error is None and r.status_code < 400
+                # client aborts close the generator; anything else is a failure
+                run["cancelled"] = isinstance(error, (GeneratorExit, asyncio.CancelledError))
+                if error is not None:
+                    run["error"] = type(error).__name__
+                elif r.status_code >= 400:
+                    run["error"] = f"http {r.status_code}"
+                if probe is not None:
+                    run.update(probe.result())
+                else:
+                    run["total_ms"] = max(0, int((time.perf_counter() - sent_at) * 1000))
+                statsvc.record(run)
 
     out_headers = {k: v for k, v in r.headers.items() if k.lower() in ("content-type", "cache-control")}
     return StreamingResponse(gen(), status_code=r.status_code, headers=out_headers)

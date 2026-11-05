@@ -139,6 +139,7 @@ function showView(v) {
   $$(".tabbtn").forEach(x => x.classList.toggle("active", x.dataset.view === v));
   $$(".view").forEach(x => x.classList.toggle("active", x.id === "view-" + v));
   if (v === "models") loadModels();
+  if (v === "stats") loadStats();
   if (v === "settings") {
     loadInstalled(); loadLogs();
     if (state.versionsChannel !== channel()) fetchVersions();
@@ -165,6 +166,7 @@ async function loadConfig() {
   $("#cfgVersion").textContent = state.cfg.app_version || "-";
   $("#updCurrent").textContent = state.cfg.app_version || "-";
   $("#chkUpdateCheck").checked = state.cfg.update_check_enabled !== false;
+  $("#chkStatsEnabled").checked = state.cfg.stats_enabled !== false;
   $("#cfgDataDir").textContent = state.cfg.data_dir || "-";
   $("#cfgModelsDir").textContent = state.cfg.models_dir || "-";
 }
@@ -996,6 +998,125 @@ $("#btnGenImg").addEventListener("click", async () => {
 });
 $("#imgPrompt").addEventListener("keydown", e => {
   if (e.key === "Enter") { e.preventDefault(); $("#btnGenImg").click(); }
+});
+
+// ------------------------------------------------------------ usage statistics
+
+const fmtInt = n => Number(n || 0).toLocaleString();
+
+function fmtMs(ms) {
+  if (ms == null) return "–";
+  return ms >= 1000 ? (ms / 1000).toFixed(2) + " s" : Math.round(ms) + " ms";
+}
+
+function fmtTps(v) {
+  return v == null ? "–" : Number(v).toFixed(1);
+}
+
+function statsWhen(ts) {
+  const d = new Date(Number(ts) * 1000);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay ? `${hh}:${mm}` : `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
+}
+
+function statCard(labelKey, value, sub) {
+  return `<div class="stat-card"><div class="v">${esc(value)}</div>
+    <div class="k">${esc(t(labelKey))}${sub ? ` · ${esc(sub)}` : ""}</div></div>`;
+}
+
+function statsChart(series) {
+  const n = series.length;
+  if (!n) return "";
+  const max = Math.max(1, ...series.map(d => Number(d.tokens_out || 0)));
+  const W = Math.max(320, n * 6), H = 90, bw = (W - 4) / n;
+  const bars = series.map((d, i) => {
+    const h = Math.max(0, Math.round((Number(d.tokens_out || 0) / max) * (H - 20)));
+    const tip = `${d.date} · ${fmtInt(d.tokens_out)} tok · ${fmtInt(d.runs)} runs` +
+                (d.avg_tps != null ? ` · ${fmtTps(d.avg_tps)} tok/s` : "");
+    return `<rect class="bar" x="${(2 + i * bw).toFixed(1)}" y="${H - 16 - h}"
+      width="${Math.max(1, bw - 1.5).toFixed(1)}" height="${h}"><title>${esc(tip)}</title></rect>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+function statsTable(headKeys, rows) {
+  const head = headKeys.map(([key, num]) =>
+    `<th${num ? ' class="num"' : ""}>${esc(t(key))}</th>`).join("");
+  return `<table class="stats-table"><thead><tr>${head}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+}
+
+function statsStatusBadge(r) {
+  if (r.ok) return `<span class="badge on">${esc(t("stats.status_ok"))}</span>`;
+  if (r.cancelled) return `<span class="badge">${esc(t("stats.status_cancelled"))}</span>`;
+  return `<span class="badge fail">${esc(t("stats.status_failed"))}</span>`;
+}
+
+function renderStats(s) {
+  const tot = s.totals || {};
+  const rate = tot.runs ? Math.round((tot.ok / tot.runs) * 100) : null;
+  $("#statsCards").innerHTML =
+    statCard("stats.runs", fmtInt(tot.runs)) +
+    statCard("stats.success", rate == null ? "–" : rate + " %") +
+    statCard("stats.tokens_out", fmtInt(tot.tokens_out)) +
+    statCard("stats.avg_tps", fmtTps(tot.avg_tps), t("stats.tok_s")) +
+    statCard("stats.avg_ttft", fmtMs(tot.avg_ttft_ms));
+
+  const hasData = Number(tot.runs) > 0;
+  $("#statsChartNote").classList.toggle("hidden", !hasData);
+  $("#statsChart").innerHTML = hasData ? statsChart(s.series || []) : "";
+
+  const models = s.models || [];
+  $("#statsModels").innerHTML = models.length
+    ? statsTable([["stats.col_model"], ["stats.col_device"], ["stats.col_runs", 1],
+                  ["stats.col_tps", 1], ["stats.col_ttft", 1], ["stats.col_tokens", 1]],
+        models.map(m => `<tr>
+          <td class="model" title="${esc(m.model)}">${esc(m.model)}</td>
+          <td>${m.device ? `<span class="badge">${esc(m.device)}</span>` : "–"}</td>
+          <td class="num">${fmtInt(m.runs)}${m.ok !== m.runs ? ` <span class="muted">(${fmtInt(m.ok)})</span>` : ""}</td>
+          <td class="num">${fmtTps(m.avg_tps)}</td>
+          <td class="num">${fmtMs(m.avg_ttft_ms)}</td>
+          <td class="num">${fmtInt(m.tokens_out)}</td></tr>`))
+    : `<p class="muted small">${esc(t("stats.no_data"))}</p>`;
+
+  const recent = s.recent || [];
+  $("#statsRecent").innerHTML = recent.length
+    ? statsTable([["stats.col_time"], ["stats.col_model"], ["stats.col_device"], ["stats.col_tokens", 1],
+                  ["stats.col_tps", 1], ["stats.col_ttft", 1], ["stats.col_status"]],
+        recent.map(r => `<tr>
+          <td>${esc(statsWhen(r.ts))}</td>
+          <td class="model" title="${esc(r.model || "")}">${esc(r.model || "–")}</td>
+          <td>${r.device ? `<span class="badge">${esc(r.device)}</span>` : "–"}</td>
+          <td class="num">${r.completion_tokens == null ? "–" : (r.tokens_approx ? "~" : "") + fmtInt(r.completion_tokens)}</td>
+          <td class="num">${fmtTps(r.tps)}</td>
+          <td class="num">${fmtMs(r.ttft_ms)}</td>
+          <td>${statsStatusBadge(r)}</td></tr>`))
+    : `<p class="muted small">${esc(t("stats.no_data"))}</p>`;
+}
+
+async function loadStats() {
+  const days = Number($("#selStatsDays").value) || 30;
+  try {
+    renderStats(await api(`/api/stats/summary?days=${days}`));
+  } catch (e) { toast(e.message, true); }
+}
+
+$("#btnStatsReload").addEventListener("click", loadStats);
+$("#selStatsDays").addEventListener("change", loadStats);
+$("#chkStatsEnabled").addEventListener("change", async () => {
+  try {
+    await api("/api/config", { method: "POST", body: { stats_enabled: $("#chkStatsEnabled").checked } });
+    toast(t("stats.saved"));
+  } catch (e) { toast(e.message, true); loadConfig(); }
+});
+$("#btnStatsClear").addEventListener("click", async () => {
+  if (!await confirmDlg(t("stats.clear_confirm"), t("common.clear"))) return;
+  try {
+    await api("/api/stats", { method: "DELETE" });
+    toast(t("stats.cleared"));
+    loadStats();
+  } catch (e) { toast(e.message, true); }
 });
 
 async function loadLogs() {

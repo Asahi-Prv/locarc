@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Statistics tab: every chat and image-generation run served through the UI proxy is
+  recorded locally (`data/stats/runs.jsonl`) — model, device, OVMS runtime, prompt and
+  completion tokens, TTFT, generation time, tok/s and failures, with per-model breakdowns
+  and a daily chart. Exact token counts come from OVMS usage reporting
+  (`stream_options.include_usage`, injected by the proxy); when a server does not report
+  usage the record is marked approximate. Nothing is ever sent over the network, and
+  recording can be switched off in the tab (`stats_enabled` in `config.json`).
+
 ## [2.0.3] - 2026-11-03
 
 ### Fixed
