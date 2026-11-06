@@ -14,6 +14,12 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
       <span data-i18n="nav.new_chat">新規チャット</span>
     </button>
+    <div class="sess-actions">
+      <button id="btnChatsExport" class="btn small ghost" data-i18n="chat.export" data-i18n-title="chat.export_title">書き出し</button>
+      <button id="btnChatsImport" class="btn small ghost" data-i18n="chat.import" data-i18n-title="chat.import_title">取り込み</button>
+      <button id="btnChatsReset" class="btn small ghost" data-i18n="chat.reset" data-i18n-title="chat.reset_title">全削除</button>
+    </div>
+    <input id="chatsImportFile" type="file" accept=".json,application/json" class="hidden">
     <div id="chatSessions" class="sessions"></div>
     <div class="sidebottom">
       <button class="tabbtn active" data-view="chat" data-i18n="nav.chat">チャット</button>

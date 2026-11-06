@@ -31,8 +31,11 @@ It manages the whole lifecycle in a native WebView2 window:
   an NPU tip (or a warning for non-CW models) when NPU is selected.
 - **Load / unload models** – device selection (CPU/GPU/NPU/AUTO), serve-mode auto-detection,
   and LLM load options such as KV-cache size, KV precision (u8), context length, and prefix caching.
+  The dialog shows the detected model kind and, for a first load, starts from this PC's
+  recommended values.
 - **Chat** – streaming chat with Markdown rendering, thinking-content support, auto-generated
-  titles, per-chat generation parameters, and persisted chat history.
+  titles, per-chat generation parameters, and persisted chat history that can be exported to
+  JSON, imported (merged) and reset from the sidebar.
 - **Generate images** – for `image_generation` models.
 - **Usage statistics** – a Statistics tab records every run locally (model, device, OVMS
   runtime, prompt/completion tokens, TTFT, tok/s, success rate) with per-model breakdowns and

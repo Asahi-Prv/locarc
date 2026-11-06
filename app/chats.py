@@ -85,6 +85,61 @@ def get(cid: str, lang: str | None = None) -> dict:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def _clean_params(src) -> dict:
+    merged = dict(DEFAULT_PARAMS)
+    if not isinstance(src, dict):
+        return merged
+    for k in DEFAULT_PARAMS:
+        if k not in src:
+            continue
+        try:
+            if k in _PARAM_FLOAT:
+                merged[k] = float(src[k])
+            elif k in _PARAM_INT:
+                merged[k] = int(float(src[k]))
+            elif k in _PARAM_STR:
+                merged[k] = str(src.get(k, ""))[:4000]
+            elif k in _PARAM_BOOL:
+                merged[k] = bool(src[k])
+        except (TypeError, ValueError):
+            pass
+    return merged
+
+
+def _clean_messages(src) -> list[dict]:
+    msgs = []
+    if not isinstance(src, list):
+        return msgs
+    for m in src:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        if role not in ("system", "user", "assistant"):
+            continue
+        msg = {"role": role, "content": str(m.get("content", ""))}
+        think = str(m.get("think") or "")
+        if think:
+            msg["think"] = think[:20000]
+        stats = m.get("stats")
+        if isinstance(stats, dict):
+            clean = {}
+            for key in ("sec", "tokens", "tps"):
+                value = stats.get(key)
+                if isinstance(value, (int, float)):
+                    clean[key] = round(float(value), 2)
+            if clean:
+                msg["stats"] = clean
+        msgs.append(msg)
+    return msgs
+
+
+def _as_float(value, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def save(cid: str, data: dict, lang: str | None = None) -> dict:
     chat = get(cid, lang)
     if "title" in data:
@@ -92,49 +147,72 @@ def save(cid: str, data: dict, lang: str | None = None) -> dict:
     if "model" in data:
         chat["model"] = str(data["model"])
     if "params" in data and isinstance(data["params"], dict):
-        merged = dict(DEFAULT_PARAMS)
-        src = data["params"]
-        for k in DEFAULT_PARAMS:
-            if k not in src:
-                continue
-            try:
-                if k in _PARAM_FLOAT:
-                    merged[k] = float(src[k])
-                elif k in _PARAM_INT:
-                    merged[k] = int(float(src[k]))
-                elif k in _PARAM_STR:
-                    merged[k] = str(src.get(k, ""))[:4000]
-                elif k in _PARAM_BOOL:
-                    merged[k] = bool(src[k])
-            except (TypeError, ValueError):
-                pass
-        chat["params"] = merged
+        chat["params"] = _clean_params(data["params"])
     if "messages" in data and isinstance(data["messages"], list):
-        msgs = []
-        for m in data["messages"]:
-            role = m.get("role")
-            if role in ("system", "user", "assistant"):
-                msg = {"role": role, "content": str(m.get("content", ""))}
-                think = str(m.get("think") or "")
-                if think:
-                    msg["think"] = think[:20000]
-                stats = m.get("stats")
-                if isinstance(stats, dict):
-                    clean = {}
-                    for key in ("sec", "tokens", "tps"):
-                        value = stats.get(key)
-                        if isinstance(value, (int, float)):
-                            clean[key] = round(float(value), 2)
-                    if clean:
-                        msg["stats"] = clean
-                msgs.append(msg)
-        chat["messages"] = msgs
+        chat["messages"] = _clean_messages(data["messages"])
     chat["updated_at"] = time.time()
     _path(cid).write_text(json.dumps(chat, ensure_ascii=False, indent=1), encoding="utf-8")
     return chat
+
+
+def export_all() -> list[dict]:
+    """Every stored chat as-is, oldest first (backup / migration bundle)."""
+    _ensure()
+    out = []
+    for p in CHATS_DIR.glob("*.json"):
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(d, dict) and _ID_RE.match(str(d.get("id") or "")):
+            out.append(d)
+    out.sort(key=lambda c: c.get("updated_at", 0))
+    return out
+
+
+def import_many(items: list, lang: str | None = None) -> dict:
+    """Merge exported chats: existing ids are overwritten, new ids are added."""
+    _ensure()
+    result = {"imported": 0, "replaced": 0, "skipped": 0}
+    for raw in items or []:
+        if not isinstance(raw, dict):
+            result["skipped"] += 1
+            continue
+        cid = str(raw.get("id") or "")
+        if not _ID_RE.match(cid):
+            result["skipped"] += 1
+            continue
+        now = time.time()
+        path = CHATS_DIR / f"{cid}.json"
+        is_new = not path.exists()
+        chat = {
+            "id": cid,
+            "title": str(raw.get("title") or tr(lang, "chat.untitled"))[:120],
+            "model": str(raw.get("model") or ""),
+            "params": _clean_params(raw.get("params")),
+            "messages": _clean_messages(raw.get("messages")),
+            "created_at": _as_float(raw.get("created_at"), now),
+            "updated_at": _as_float(raw.get("updated_at"), now),
+        }
+        path.write_text(json.dumps(chat, ensure_ascii=False, indent=1), encoding="utf-8")
+        result["imported" if is_new else "replaced"] += 1
+    return result
 
 
 def delete(cid: str, lang: str | None = None) -> None:
     p = _path(cid, lang)
     if p.exists():
         p.unlink()
+
+
+def delete_all() -> int:
+    """Remove every stored chat; returns how many files were deleted."""
+    _ensure()
+    deleted = 0
+    for p in CHATS_DIR.glob("*.json"):
+        try:
+            p.unlink()
+            deleted += 1
+        except OSError:
+            pass
+    return deleted

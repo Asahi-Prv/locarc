@@ -1360,6 +1360,91 @@ async function openChat(id) {
   maybeAutoTitle(state.chat);  // a chat closed before its title was generated gets one now
 }
 
+// ------------------------------------------------------------ history backup
+
+function exportFileName() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return `locarc-chats-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`
+    + `-${p(d.getHours())}${p(d.getMinutes())}.json`;
+}
+
+// Ask for the destination first when the engine supports the File System Access
+// API (Chromium browsers / WebView2); the user picks any folder and file name.
+// Returns a writable handle, false when the user cancelled, or null to fall back
+// to a regular download (the desktop windows then show their own Save-as dialog).
+async function pickExportTarget(name) {
+  if (typeof window.showSaveFilePicker !== "function") return null;
+  try {
+    return await window.showSaveFilePicker({
+      suggestedName: name,
+      types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+    });
+  } catch (e) {
+    if (e && e.name === "AbortError") return false;
+    return null;  // blocked or unsupported here -> use the download path
+  }
+}
+
+$("#btnChatsExport").addEventListener("click", async () => {
+  if (!state.chats.length) { toast(t("chat.export_empty"), true); return; }
+  try {
+    const target = await pickExportTarget(exportFileName());
+    if (target === false) return;  // cancelled in the save dialog
+    const bundle = await api("/api/chats/export");
+    const json = JSON.stringify(bundle, null, 1);
+    if (target) {
+      const writable = await target.createWritable();
+      await writable.write(json);
+      await writable.close();
+    } else {
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = exportFileName();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    toast(t("chat.export_done", { n: bundle.count }));
+  } catch (e) { toast(e.message, true); }
+});
+
+$("#btnChatsImport").addEventListener("click", () => $("#chatsImportFile").click());
+
+$("#chatsImportFile").addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";  // allow picking the same file again
+  if (!file) return;
+  let data = null;
+  try { data = JSON.parse(await file.text()); } catch { /* reported below */ }
+  const items = Array.isArray(data) ? data : data && data.chats;
+  if (!Array.isArray(items)) { toast(t("chat.import_bad_file"), true); return; }
+  if (!(await confirmDlg(t("chat.import_confirm", { n: items.length }), t("chat.import")))) return;
+  try {
+    const r = await api("/api/chats/import", { method: "POST", body: { chats: items } });
+    toast(t("chat.import_done", { added: r.imported, replaced: r.replaced, skipped: r.skipped }));
+    await loadChatList();
+    // an imported copy may have replaced the chat on screen: show the stored version
+    if (state.chat && !state.stream) await openChat(state.chat.id);
+  } catch (err) { toast(err.message, true); }
+});
+
+$("#btnChatsReset").addEventListener("click", async () => {
+  if (state.stream) { toast(t("chat.busy_other")); return; }
+  if (!state.chats.length) { toast(t("chat.reset_empty"), true); return; }
+  if (!(await confirmDlg(t("chat.reset_confirm", { n: state.chats.length })))) return;
+  try {
+    const r = await api("/api/chats", { method: "DELETE" });
+    state.chat = null;
+    await loadChatList();
+    renderChat();
+    toast(t("chat.reset_done", { n: r.deleted }));
+  } catch (e) { toast(e.message, true); }
+});
+
 // New chat is lazy: nothing is created until the first prompt is sent.
 $("#btnNewChat").addEventListener("click", () => {
   showView("chat");

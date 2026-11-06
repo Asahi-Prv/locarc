@@ -515,6 +515,28 @@ def api_chat_create(request: Request):
     return chatsvc.create(lang=_lang(request))
 
 
+# Registered before /api/chats/{cid} so "export" is not read as a chat id.
+@app.get("/api/chats/export")
+def api_chats_export():
+    chats = chatsvc.export_all()
+    return {"app": "locarc", "type": "chats", "version": 1,
+            "exported_at": time.time(), "count": len(chats), "chats": chats}
+
+
+@app.post("/api/chats/import")
+def api_chats_import(body: dict, request: Request):
+    lang = _lang(request)
+    items = body.get("chats") if isinstance(body, dict) else None
+    if not isinstance(items, list) or len(items) > 20000:
+        raise HTTPException(400, tr(lang, "err.bad_chat_import"))
+    return chatsvc.import_many(items, lang=lang)
+
+
+@app.delete("/api/chats")
+def api_chats_reset():
+    return {"deleted": chatsvc.delete_all()}
+
+
 @app.get("/api/chats/{cid}")
 def api_chat_get(cid: str, request: Request):
     lang = _lang(request)
@@ -809,6 +831,13 @@ def _run_desktop(url: str, port: int, log_config) -> None:
         else:
             print("[desktop] creating the window")
             try:
+                # pywebview cancels downloads by default, which would silently
+                # break the chat-history export; with this on it shows a Save-as
+                # dialog instead.
+                try:
+                    webview.settings["ALLOW_DOWNLOADS"] = True
+                except Exception:
+                    pass
                 webview.create_window(APP_NAME, url, width=1280, height=860, min_size=(960, 640))
                 webview.start()
                 window_shown = True

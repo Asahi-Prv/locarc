@@ -71,6 +71,41 @@ def test_chats_keep_think_and_stats():
     reset_config()
 
 
+def test_chat_history_export_import_reset():
+    reset_config()
+    cid = client.post("/api/chats").json()["id"]
+    client.put(f"/api/chats/{cid}", json={"title": "keep",
+                                          "messages": [{"role": "user", "content": "hi"}]})
+
+    bundle = client.get("/api/chats/export").json()
+    assert bundle["type"] == "chats" and bundle["version"] == 1
+    assert any(c["id"] == cid for c in bundle["chats"])
+
+    # merge: same id overwrites, new id is added, invalid entries are skipped
+    r = client.post("/api/chats/import", json={"chats": [
+        {"id": cid, "title": "restored",
+         "messages": [{"role": "user", "content": "new"},
+                      {"role": "assistant", "content": "yo", "think": "t",
+                       "stats": {"sec": 1, "tokens": 2, "tps": 3}}]},
+        {"id": "0123456789ab", "title": "extra", "messages": []},
+        {"id": "../evil", "title": "nope"},
+        {"title": "no id"},
+    ]}).json()
+    assert r == {"imported": 1, "replaced": 1, "skipped": 2}
+    got = client.get(f"/api/chats/{cid}").json()
+    assert got["title"] == "restored"
+    assert [m["content"] for m in got["messages"]] == ["new", "yo"]
+    assert got["messages"][1]["think"] == "t"
+    assert client.get("/api/chats/0123456789ab").json()["title"] == "extra"
+
+    assert client.post("/api/chats/import", json={"chats": "nope"}).status_code == 400
+
+    deleted = client.delete("/api/chats").json()["deleted"]
+    assert deleted >= 2
+    assert client.get("/api/chats").json() == []
+    reset_config()
+
+
 def test_path_traversal_is_rejected():
     reset_config()
     assert client.delete("/api/ovms/runtime/..%5C..%5CWindows").status_code == 404

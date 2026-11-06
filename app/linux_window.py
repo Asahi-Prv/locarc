@@ -37,15 +37,59 @@ def main(url: str) -> int:
 
         gi.require_version("Gtk", "3.0")
         gi.require_version("WebKit2", "4.1")
-        from gi.repository import Gtk, WebKit2
+        from gi.repository import GLib, GObject, Gtk, WebKit2
     except (ImportError, ValueError) as e:
         print(f"WebKitGTK backend unavailable: {e}", file=sys.stderr)
         return 2
+
+    def on_download_started(_source, download):
+        """Save downloads (e.g. the chat-history export) via a Save-as dialog."""
+
+        def decide(_download, suggested_filename):
+            dialog = Gtk.FileChooserDialog(
+                title="Save",
+                action=Gtk.FileChooserAction.SAVE,
+                buttons=(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                         Gtk.STOCK_SAVE, Gtk.ResponseType.ACCEPT),
+            )
+            folder = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD)
+            if folder:
+                dialog.set_current_folder(folder)
+            if suggested_filename:
+                dialog.set_current_name(suggested_filename)
+            dialog.set_do_overwrite_confirmation(True)
+            try:
+                response = dialog.run()
+                path = dialog.get_filename() if response == Gtk.ResponseType.ACCEPT else None
+            finally:
+                dialog.destroy()
+            if path:
+                download.set_destination(GLib.filename_to_uri(path))
+                return True
+            download.cancel()
+            return False
+
+        download.connect("decide-destination", decide)
 
     window = Gtk.Window(title="LocArc")
     window.set_default_size(1280, 860)
     window.set_size_request(960, 640)
     webview = WebKit2.WebView()
+    # WebKitGTK drops downloads the app does not handle. Prefer the network
+    # session (WebKitGTK >= 2.40), fall back to the deprecated context signal.
+    sources = []
+    session_getter = getattr(webview, "get_network_session", None)
+    if session_getter is not None:
+        sources.append(session_getter())
+    sources.append(webview.get_context())
+    for source in sources:
+        try:
+            if source is not None and GObject.signal_lookup("download-started", source.__gtype__):
+                source.connect("download-started", on_download_started)
+                break
+        except Exception as e:  # never take the window down over a download hook
+            print(f"[desktop] download handling unavailable ({e})", file=sys.stderr)
+            break
     webview.load_uri(url)
     window.add(webview)
     window.connect("destroy", Gtk.main_quit)

@@ -61,6 +61,8 @@ body {
 }
 .brand { font-weight: 700; letter-spacing: .3px; padding: 2px 4px 8px; }
 .sessions { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.sess-actions { display: flex; gap: 6px; }
+.sess-actions .btn { flex: 1; justify-content: center; padding: 6px 4px; font-size: 12px; }
 .sess {
   display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: var(--radius-sm);
   cursor: pointer; color: var(--muted); font-size: 13px;
