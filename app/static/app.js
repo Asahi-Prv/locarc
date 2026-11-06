@@ -23,6 +23,7 @@ const state = {
   _updateTaskId: null,
   sending: false,
   abort: null,      // AbortController while streaming
+  stream: null,     // in-flight reply: {chatId, chat, el, abort}; survives view/chat switches
   stickBottom: true,        // chat autoscroll follows new output while true
   _statusSig: "",           // last rendered server status (skip DOM work when unchanged)
   _modelSelectSig: "",
@@ -1302,8 +1303,10 @@ function renderChatList(selectId = null) {
     return;
   }
   const cur = selectId || (state.chat && state.chat.id);
+  const genId = state.stream && state.stream.chatId;
   el.innerHTML = state.chats.map(c => `
-    <div class="sess ${c.id === cur ? "active" : ""}" data-chat="${esc(c.id)}" title="${esc(c.title)}">
+    <div class="sess ${c.id === cur ? "active" : ""} ${c.id === genId ? "gen" : ""}" data-chat="${esc(c.id)}" title="${esc(c.title)}">
+      ${c.id === genId ? `<span class="gen" title="${esc(t("chat.generating"))}"></span>` : ""}
       <span class="t">${esc(c.title)}${c.model ? `<span class="m">${esc(c.model)}</span>` : ""}</span>
       <button class="x" data-del-chat="${esc(c.id)}" title="${esc(t("common.delete"))}">×</button>
     </div>`).join("");
@@ -1322,6 +1325,10 @@ function renderChatList(selectId = null) {
 async function deleteChat(id) {
   const idx = state.chats.findIndex(c => c.id === id);
   const removed = idx >= 0 ? state.chats.splice(idx, 1)[0] : null;
+  if (state.stream && state.stream.chatId === id) {
+    state.stream.chat._deleted = true;  // never resurrect the file when the stream winds down
+    if (state.abort) state.abort.abort();
+  }
   if (state.chat && state.chat.id === id) { state.chat = null; renderChat(); }
   renderChatList();
   try {
@@ -1337,9 +1344,15 @@ async function deleteChat(id) {
 async function openChat(id) {
   showView("chat");
   cancelPendingTitle();
-  try {
-    state.chat = await api(`/api/chats/${id}`);
-  } catch (e) { toast(e.message, true); return; }
+  if (state.stream && state.stream.chatId === id) {
+    // The streaming object is authoritative for this chat: the file may lag
+    // behind, and replaying it would drop the in-flight exchange.
+    state.chat = state.stream.chat;
+  } else {
+    try {
+      state.chat = await api(`/api/chats/${id}`);
+    } catch (e) { toast(e.message, true); return; }
+  }
   applyParamsToUI(state.chat.params || DEFAULT_PARAMS);
   setParamsSaveState("");
   renderChat();
@@ -1361,10 +1374,12 @@ $("#btnNewChat").addEventListener("click", () => {
 function renderChat() {
   const log = $("#chatLog");
   const c = state.chat;
-  if (!c || !c.messages.length) {
+  const live = state.stream && c && state.stream.chatId === c.id ? state.stream.el : null;
+  if (!c || (!c.messages.length && !live)) {
     log.innerHTML = `<div class="chatcol"><div class="empty-hint">
       <h1>${esc(t("app.name"))}</h1>
       <p>${esc(t("chat.empty_note"))}</p></div></div>`;
+    syncComposer();
     return;
   }
   log.innerHTML = `<div class="chatcol"></div>`;
@@ -1373,8 +1388,12 @@ function renderChat() {
     if (m.role === "system") return;
     col.appendChild(msgEl(m.role, m.content, m.think, m.stats, i));
   });
+  // A reply that is still streaming lives in a detached element while another
+  // chat (or view) is shown; move it back so the user sees live progress as-is.
+  if (live) col.appendChild(live);
   log.scrollTop = log.scrollHeight;
   state.stickBottom = true;
+  syncComposer();
 }
 
 function statsText(stats) {
@@ -1436,7 +1455,10 @@ function msgEl(role, text, think, stats, index) {
 // Edit a sent prompt in place; later messages are dropped (simple branching).
 function beginEdit(el, index) {
   const chat = state.chat;
-  if (!chat || state.sending || !chat.messages[index]) return;
+  if (!chat || state.sending || !chat.messages[index]) {
+    if (state.stream) toast(t("chat.busy_other"));
+    return;
+  }
   const body = el.querySelector(".body");
   if (body.querySelector(".editor")) return;
   const editor = document.createElement("div");
@@ -1471,7 +1493,10 @@ function beginEdit(el, index) {
 
 async function regenerateLast() {
   const chat = state.chat;
-  if (!chat || state.sending) return;
+  if (!chat || state.sending) {
+    if (state.stream) toast(t("chat.busy_other"));
+    return;
+  }
   const last = chat.messages[chat.messages.length - 1];
   if (!last || last.role !== "assistant") return;
   const st = state.status;
@@ -1587,19 +1612,34 @@ async function ensureChat() {
   return state.chat;
 }
 
-async function saveCurrentChat() {
-  const c = state.chat;
-  if (!c) return;
-  try {
-    await api(`/api/chats/${c.id}`, { method: "PUT", body: {
-      title: c.title, model: c.model, params: c.params, messages: c.messages,
-    }});
-  } catch (e) { toast(t("chat.history_save_failed", { msg: e.message }), true); }
-  loadChatList(c.id);
+// Saves are queued: a slow early write (prompt) must never land after a later
+// one (finished reply) and roll the stored history back.
+let _saveQueue = Promise.resolve();
+function saveChat(chat) {
+  if (!chat || !chat.id) return _saveQueue;
+  const body = { title: chat.title, model: chat.model, params: chat.params, messages: chat.messages };
+  _saveQueue = _saveQueue.catch(() => {}).then(() => {
+    if (chat._deleted) return null;
+    return api(`/api/chats/${chat.id}`, { method: "PUT", body })
+      .then(() => loadChatList(state.chat ? state.chat.id : null));
+  }).catch(e => {
+    if (!chat._deleted) toast(t("chat.history_save_failed", { msg: e.message }), true);
+  });
+  return _saveQueue;
+}
+
+// One inference slot: while any chat streams, Send is hidden everywhere and
+// Stop is shown; its tooltip clarifies the target when the user looks elsewhere.
+function syncComposer() {
+  const streaming = !!state.stream;
+  const here = streaming && !!state.chat && state.stream.chatId === state.chat.id;
+  $("#btnSend").classList.toggle("hidden", streaming);
+  $("#btnAbort").classList.toggle("hidden", !streaming);
+  $("#btnAbort").title = streaming && !here ? t("chat.stop_other") : t("chat.stop");
 }
 
 async function sendChat() {
-  if (state.sending) return;
+  if (state.stream) { toast(t("chat.busy_other")); return; }
   cancelPendingTitle();  // free the single inference slot for the new prompt
   const st = state.status;
   if (!st.running || !st.ready) { toast(t("chat.no_model"), true); return; }
@@ -1719,8 +1759,9 @@ async function streamAssistantReply(chat) {
 
   state.sending = true;
   state.abort = new AbortController();
-  $("#btnSend").classList.add("hidden");
-  $("#btnAbort").classList.remove("hidden");
+  state.stream = { chatId: chat.id, chat, el: aEl, abort: state.abort };
+  syncComposer();
+  saveChat(chat);  // persist the prompt immediately, not only when the reply lands
 
   const reqMessages = chat.params.system_prompt
     ? [{ role: "system", content: chat.params.system_prompt }, ...chat.messages]
@@ -1824,15 +1865,20 @@ async function streamAssistantReply(chat) {
   } finally {
     state.sending = false;
     state.abort = null;
-    $("#btnSend").classList.remove("hidden");
-    $("#btnAbort").classList.add("hidden");
-    repaint(true);
-    chat.messages.push({ role: "assistant", content: answer,
-                         think: think || undefined, stats: stats || undefined });
-    aEl.replaceWith(msgEl("assistant", answer, think || undefined, stats || undefined,
-                          chat.messages.length - 1));
-    saveCurrentChat();
-    if (!aborted && answer && chat._autoTitle) generateChatTitle(chat);
+    state.stream = null;
+    syncComposer();
+    if (chat._deleted) {
+      if (aEl.isConnected) aEl.remove();
+    } else {
+      chat.messages.push({ role: "assistant", content: answer,
+                           think: think || undefined, stats: stats || undefined });
+      if (aEl.isConnected) {  // still on screen: swap the live bubble for the finished one
+        aEl.replaceWith(msgEl("assistant", answer, think || undefined, stats || undefined,
+                              chat.messages.length - 1));
+      }
+      saveChat(chat);  // the chat that streamed, even when the user moved on meanwhile
+      if (!aborted && answer && chat._autoTitle) generateChatTitle(chat);
+    }
   }
 }
 
@@ -1861,6 +1907,7 @@ function cancelPendingTitle() {
 
 async function generateChatTitle(chat, force = false) {
   if (!chat || (!chat._autoTitle && !force)) return false;
+  if (state.sending) return false;  // never compete with an in-flight reply for the model
   if (state._titleAbort) return false;  // one title request at a time
   const st = state.status;
   if (!st.running || !st.ready) return false;  // keep _autoTitle: retry when the model is back
@@ -1920,6 +1967,7 @@ async function generateChatTitle(chat, force = false) {
 
 $("#btnTitleGen")?.addEventListener("click", async () => {
   const chat = state.chat;
+  if (state.stream) { toast(t("chat.busy_other")); return; }
   cancelPendingTitle();  // an explicit request wins over a pending automatic one
   const ok = chat ? await generateChatTitle(chat, true) : false;
   if (!ok) toast(t("chat.title_failed"), true);
