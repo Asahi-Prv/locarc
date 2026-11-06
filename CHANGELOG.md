@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-06
+
+### Added
+
+- Chat history backup: the sidebar can export every chat to one JSON file, import a
+  previously exported file (same chat IDs are overwritten, everything else is kept)
+  and reset the whole history. Handy for backups and moving to another PC. Export asks
+  for the destination: Chromium-based browsers and WebView2 use a save-file picker, and
+  the packaged windows fall back to a native Save-as dialog (download handling is
+  enabled for both WebView2 and the Linux WebKitGTK window).
+
+### Changed
+
+- The model load dialog explains itself better: when no preset is saved the fields
+  start with this PC's recommended values (KV cache size, concurrent sequences), the
+  detected model kind is shown under Serve mode (LLM / image generation / classic),
+  and the KV cache, KV precision and NPU labels and hints are clearer.
+
+### Fixed
+
+- Chat replies no longer break when the user navigates away mid-generation. Moving
+  to another chat (or pressing New chat) while a reply was streaming used to discard
+  the exchange: the finished reply was written to whichever chat was on screen, and
+  the prompt could vanish from disk entirely. The in-flight reply now belongs to the
+  chat that started it — it keeps streaming in the background, the session list marks
+  it as generating, reopening that chat restores the live output, prompt and reply are
+  saved to that chat, and the composer (Send/Stop) reflects the chat that is actually
+  generating. Deleting a chat that is streaming stops the reply cleanly.
+
 ## [2.1.0] - 2026-11-05
 
 ### Added
