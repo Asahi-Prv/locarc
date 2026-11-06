@@ -130,7 +130,7 @@ python -m app.main
 2. **モデルをダウンロード** — 「モデル管理」タブで Hugging Face のリポジトリID
    （例: `OpenVINO/Qwen3-8B-int4-ov`）または直リンクURLを指定。
 3. **ロード** — ロードダイアログでデバイスと（必要なら）サーブモードを選び「ロード」。
-   OVMS がモデルを `AVAILABLE` と報告するまで待機します。
+   初回はこのPCの推奨値が自動入力されます。OVMS がモデルを `AVAILABLE` と報告するまで待機します。
 4. **チャット** — 右サイドバーにチャット専用の生成パラメータ（temperature、top-p/k、
    max_tokens、systemプロンプト、思考制御）があります。
 

@@ -135,8 +135,9 @@ A desktop window opens automatically (the local server listens on `http://127.0.
    fetch the version list, and install a build.
 2. **Download a model** — open the **Models** tab and enter a Hugging Face repo id, for example
    `OpenVINO/Qwen3-8B-int4-ov`, or use a direct URL.
-3. **Load it** — choose a device and (if needed) a serve mode in the load dialog, then press
-   *Load*. The UI waits until OVMS reports the model as `AVAILABLE`.
+3. **Load it** — choose a device and (if needed) a serve mode in the load dialog (recommended
+   values are pre-filled for a first load), then press *Load*. The UI waits until OVMS reports
+   the model as `AVAILABLE`.
 4. **Chat** — once loaded, type a message. The right sidebar holds per-chat generation parameters
    (temperature, top-p/k, max tokens, system prompt, thinking control).
 

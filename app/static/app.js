@@ -759,6 +759,11 @@ function applyLoadWarnings(opts) {
   $("#ldWarnings").textContent = warnText;
   $("#ldWarnRow").classList.toggle("hidden", !warnText);
   $("#ldImageHint").classList.toggle("hidden", opts.kind !== "image_generation");
+  // Say what the model was detected as, so "Auto detect" is not a black box.
+  const hint = $("#ldKindHint");
+  const kindKey = opts.kind && opts.kind !== "unknown" ? `load.kind.${opts.kind}` : "";
+  hint.classList.toggle("hidden", !kindKey);
+  if (kindKey) hint.textContent = t(kindKey);
   state._ldQuant = { quant: opts.quant || "", cw: !!opts.cw };
   refreshLlmOptionVisibility();
 }
@@ -805,6 +810,10 @@ async function openLoadDialog(name) {
   refreshLlmOptionVisibility();
   $("#loadOverlay").dataset.model = model;
   $("#loadOverlay").classList.remove("hidden");
+  $("#ldRecommendInfo").textContent = "";
+  // First open for this model (no saved preset): start from this PC's values.
+  const hasPreset = LOAD_FIELDS.some(k => opts[k] != null) || !!opts.kv_cache_precision;
+  if (!hasPreset) applyRecommendation(model, true);
   // Never block the dialog on the OpenVINO device probe. Force a re-detect so a
   // driver installed after the first probe (e.g. the Intel NPU driver) shows up.
   api("/api/ovms/devices?refresh=1").then(r => {
@@ -819,18 +828,31 @@ async function openLoadDialog(name) {
 
 $("#ldCancel").addEventListener("click", () => $("#loadOverlay").classList.add("hidden"));
 
-$("#ldRecommend").addEventListener("click", async () => {
-  const model = $("#loadOverlay").dataset.model;
+// Heuristic preset from model size + free RAM. Also runs when the dialog opens
+// without a saved preset, so the fields start with sensible values.
+async function applyRecommendation(model, quiet = false) {
+  if (!model) return false;
   try {
     const r = await api(`/api/model/recommend?model=${encodeURIComponent(model)}`);
+    const overlay = $("#loadOverlay");
+    if (overlay.classList.contains("hidden") || overlay.dataset.model !== model) return false;
     $("#ldCache").value = r.cache_size;
     $("#ldSeqs").value = r.max_num_seqs;
     $("#ldCachePrec").value = r.kv_cache_precision || "";
     $("#ldRecommendInfo").textContent = t("load.recommend_info", {
-      size: r.model_size_gb, ram: r.free_ram_gb, cache: r.cache_size,
+      size: r.model_size_gb, ram: r.free_ram_gb, cache: r.cache_size, seqs: r.max_num_seqs,
       u8: r.kv_cache_precision ? t("load.recommend_u8") : "",
     });
-  } catch (e) { toast(e.message, true); }
+    return true;
+  } catch (e) {
+    if (!quiet) toast(e.message, true);
+    return false;
+  }
+}
+
+$("#ldRecommend").addEventListener("click", () => {
+  const model = $("#loadOverlay").dataset.model;
+  if (model) applyRecommendation(model);
 });
 
 $("#ldOk").addEventListener("click", async () => {
