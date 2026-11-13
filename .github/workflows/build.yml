@@ -103,12 +103,22 @@ jobs:
           cp -a dist/LocArc/. compat/Intel-AI-Studio/
           cp compat/Intel-AI-Studio/LocArc compat/Intel-AI-Studio/Intel-AI-Studio
           tar -C compat -czf Intel-AI-Studio-linux-x64.tar.gz Intel-AI-Studio
+      - name: Build .deb package
+        run: |
+          version="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' app/version.py)"
+          bash packaging/linux/build-deb.sh dist/LocArc "$version" LocArc-linux-x64.deb
+      - name: Install the .deb and smoke test the launcher
+        run: |
+          sudo apt-get install -y --no-install-recommends ./LocArc-linux-x64.deb
+          dpkg-query -W -f='Installed: locarc ${Version}\n' locarc
+          bash scripts/smoke-test.sh /usr/bin/locarc
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: linux
           path: |
             LocArc-linux-x64.tar.gz
+            LocArc-linux-x64.deb
             Intel-AI-Studio-linux-x64.tar.gz
 
   release:
@@ -125,7 +135,7 @@ jobs:
       - name: Collect release files
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.zip' -o -name '*.exe' -o -name '*.tar.gz' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.zip' -o -name '*.exe' -o -name '*.tar.gz' -o -name '*.deb' \) -exec cp {} release/ \;
           ls -l release
       - name: Generate checksums
         run: |

@@ -113,7 +113,8 @@ Windows / Linux 実行ファイルのビルドも行われます。
 
 - タグのバージョンを `app/version.py` に反映
 - Windows / Linux 実行ファイルのビルドと各スモークテスト
-- Windowsポータブルzip・Inno Setupインストーラー・Linux tarballの作成と、統合 `SHA256SUMS.txt`
+- Windowsポータブルzip・Inno Setupインストーラー・Linux tarball・Debianパッケージ（`.deb`）の
+  作成と、統合 `SHA256SUMS.txt`
   の生成（旧 `Intel-AI-Studio-*` 名の互換アセットも同梱）
 - Conventional Commitsから分類済みリリースノートを生成（`scripts/release_notes.py`）
 - 全ファイルを添付してGitHubリリースを公開

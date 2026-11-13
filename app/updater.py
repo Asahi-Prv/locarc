@@ -105,6 +105,21 @@ def allowed_repos() -> set[str]:
     return {repo(), DEFAULT_REPO, *LEGACY_REPOS}
 
 
+def can_self_update() -> bool:
+    """True when this build may replace itself in place.
+
+    Needs a frozen build whose app folder is writable by the current user.
+    System-package installs (the .deb keeps the payload in root-owned /opt)
+    fall back to updating through the package instead.
+    """
+    if not getattr(sys, "frozen", False):
+        return False
+    try:
+        return os.access(Path(sys.executable).resolve().parent, os.W_OK)
+    except OSError:
+        return False
+
+
 def parse_version(text: str | None) -> tuple[int, ...]:
     """Parse ``v1.2.3`` / ``1.2`` into a comparable tuple (empty when unparsable)."""
     match = re.match(r"v?(\d+(?:\.\d+)*)", (text or "").strip())
@@ -328,6 +343,8 @@ def apply_update(staged_app_dir: Path, lang: str | None = None) -> None:
     """Spawn the detached updater script and exit so it can replace this build."""
     if not getattr(sys, "frozen", False):
         raise RuntimeError(tr(lang, "err.update_source_mode"))
+    if not can_self_update():
+        raise RuntimeError(tr(lang, "err.update_managed_mode"))
 
     app_dir = Path(sys.executable).resolve().parent
     name = Path(sys.executable).name

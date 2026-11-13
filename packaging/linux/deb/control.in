@@ -1,0 +1,13 @@
+Package: locarc
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6
+Recommends: python3-gi, gir1.2-webkit2-4.1
+Maintainer: Asahi <Asahi-Prv@users.noreply.github.com>
+Homepage: https://github.com/Asahi-Prv/locarc
+Description: OpenVINO Model Server manager
+ Manage OVMS runtimes, download models from Hugging Face, load them and chat.
+ Bundles its own Python runtime; user data (models, chats, settings) is kept
+ in ~/.local/share/locarc/data and survives upgrades and removal.

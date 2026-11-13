@@ -53,6 +53,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err.update_not_available": "No update to apply. Check again first.",
         "err.update_source_mode": "In-app updates are only available for the packaged app. "
                                   "From source, update with git pull.",
+        "err.update_managed_mode": "This installation is managed by the system package "
+                                   "manager. Install the new .deb package to update.",
         "err.model_not_found": "Model not found",
         "err.model_not_found_id": "Model '{name}' not found",
         "err.no_model_selected": "No model selected",
@@ -130,6 +132,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "err.update_checksums": "更新の検証に失敗しました（リリースにチェックサムがありません）",
         "err.update_not_available": "適用できる更新がありません。先に更新を確認してください。",
         "err.update_source_mode": "アプリ内更新はパッケージ版専用です。ソース実行では git pull で更新してください。",
+        "err.update_managed_mode": "このインストールはシステムのパッケージ管理下にあります。新しい .deb パッケージをインストールして更新してください。",
         "err.model_not_found": "モデルが見つかりません",
         "err.model_not_found_id": "モデル '{name}' が見つかりません",
         "err.no_model_selected": "モデルが選択されていません",

@@ -604,6 +604,18 @@ def test_apply_update_requires_frozen(tmp_path):
         updater.apply_update(tmp_path)
 
 
+def test_can_self_update_requires_writable_frozen_app(monkeypatch, tmp_path):
+    import sys as _sys
+
+    from app import updater
+    assert updater.can_self_update() is False  # source run is never self-updating
+    monkeypatch.setattr(_sys, "frozen", True, raising=False)
+    monkeypatch.setattr(_sys, "executable", str(tmp_path / "LocArc"))
+    assert updater.can_self_update() is True   # writable app folder (portable installs)
+    monkeypatch.setattr(updater.os, "access", lambda *a, **k: False)
+    assert updater.can_self_update() is False  # root-owned /opt (the .deb) -> update via apt
+
+
 def test_config_cache_invalidates_on_change():
     reset_config()
     assert load_config() == load_config()          # cached

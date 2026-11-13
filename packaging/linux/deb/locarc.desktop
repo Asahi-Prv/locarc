@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=LocArc
+GenericName=OpenVINO Model Server Manager
+Comment=Manage OpenVINO Model Server runtimes, download models, load them and chat
+Exec=/usr/bin/locarc
+Terminal=false
+Categories=Development;Science;Utility;
+Keywords=OpenVINO;OVMS;AI;LLM;Intel;LocArc;

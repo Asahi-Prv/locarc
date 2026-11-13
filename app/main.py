@@ -108,7 +108,9 @@ def api_update_check(request: Request, force: int = 0):
         info = updater.check_for_update(force=bool(force), lang=lang)
     except Exception as e:
         raise HTTPException(502, tr(lang, "err.update_failed", error=e)) from e
-    return {**info, "frozen": bool(getattr(sys, "frozen", False))}
+    return {**info,
+            "frozen": bool(getattr(sys, "frozen", False)),
+            "self_update": updater.can_self_update()}
 
 
 @app.post("/api/update/run")
@@ -116,6 +118,8 @@ def api_update_run(body: dict, request: Request):
     lang = _lang(request)
     if not getattr(sys, "frozen", False):
         raise HTTPException(400, tr(lang, "err.update_source_mode"))
+    if not updater.can_self_update():
+        raise HTTPException(400, tr(lang, "err.update_managed_mode"))
     try:
         info = updater.check_for_update(force=False, lang=lang)
     except Exception as e:

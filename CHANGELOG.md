@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Linux installer: releases now ship a Debian package (`LocArc-linux-x64.deb`). Install it with
+  `sudo apt install ./LocArc-linux-x64.deb`; it adds a `locarc` launcher and an application-menu
+  entry, and keeps user data in `~/.local/share/locarc/data` (the same folder as the portable
+  install, so existing installations keep their data). Updates arrive as new `.deb` packages;
+  the in-app updater now detects package-managed installs and points to the download instead of
+  offering a button that cannot work.
+
 ## [2.3.0] - 2026-11-13
 
 ### Added

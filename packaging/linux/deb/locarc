@@ -1,0 +1,22 @@
+#!/bin/sh
+# LocArc launcher for the .deb install.
+#
+# The app itself lives in /opt/locarc (root-owned, managed by dpkg), so user
+# data (runtimes, models, chats, settings) is kept per-user instead. The path
+# matches the portable install.sh layout, so an existing installation keeps
+# its data when switching to the package. An explicit LOCARC_DATA always wins.
+set -eu
+
+APP_DIR="/opt/locarc"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+DATA_DIR="$DATA_HOME/locarc/data"
+LEGACY_DATA="$DATA_HOME/intel-ai-studio/data"
+
+# First run: adopt data from a pre-rename installation, like install.sh does.
+if [ ! -e "$DATA_DIR" ] && [ -d "$LEGACY_DATA" ]; then
+  mkdir -p "$DATA_HOME/locarc"
+  cp -a "$LEGACY_DATA" "$DATA_DIR" 2>/dev/null || true
+fi
+
+export LOCARC_DATA="${LOCARC_DATA:-$DATA_DIR}"
+exec "$APP_DIR/LocArc" "$@"

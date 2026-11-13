@@ -113,8 +113,8 @@ The *Build apps* workflow then:
 
 - stamps the tag version into `app/version.py`,
 - builds the Windows and Linux executables and smoke-tests each,
-- packages the Windows portable zip, the Inno Setup installer, and the Linux tarball, then writes a
-  combined `SHA256SUMS.txt`,
+- packages the Windows portable zip, the Inno Setup installer, the Linux tarball and the Debian
+  package (`.deb`), then writes a combined `SHA256SUMS.txt`,
 - generates categorized notes from conventional commits (`scripts/release_notes.py`),
 - publishes the GitHub release with all files attached.
 

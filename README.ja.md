@@ -48,7 +48,8 @@
 ## インストール
 
 各リリースには Windows / Linux 版があります。それぞれがPythonランタイムを同梱し、データ
-（ランタイム・モデル・チャット・設定）は実行ファイルと同じフォルダの `data` に保存されます。
+（ランタイム・モデル・チャット・設定）は実行ファイルと同じフォルダの `data` に保存されます
+（Linux の `.deb` 版は `~/.local/share/locarc/data`）。
 
 ### Windows
 
@@ -62,19 +63,16 @@
 
 ### Linux（Ubuntu 24.04）
 
-`LocArc-linux-x64.tar.gz` をダウンロードします。ポータブルフォルダに加えて、
-ユーザー単位のインストーラーも同梱されています:
+| ビルド | ダウンロード | 動作 |
+| --- | --- | --- |
+| **インストーラー版**（推奨・Ubuntu/Debian） | `LocArc-linux-x64.deb` | `sudo apt install ./LocArc-linux-x64.deb` — `/opt/locarc` にインストールし、`locarc` コマンドとアプリメニュー登録を追加します。データは `~/.local/share/locarc/data` に保存され、更新は新しい `.deb` をインストールします（deb版ではアプリ内更新は無効になります） |
+| **ポータブル版** | `LocArc-linux-x64.tar.gz` | 任意の場所に展開して `./LocArc` を実行。`./install.sh` でユーザー単位インストール（ランチャー+アプリメニュー登録、管理者権限不要） |
 
-```bash
-tar -xzf LocArc-linux-x64.tar.gz
-cd LocArc
-./install.sh          # ランチャーとアプリメニュー登録（管理者権限不要）
-./LocArc          # インストールせず直接実行することもできます
-```
-
-`install.sh` はアプリを `~/.local/share/locarc` へコピーし、`~/.local/bin` に
+ポータブル版の `install.sh` はアプリを `~/.local/share/locarc` へコピーし、`~/.local/bin` に
 `locarc` コマンドを、アプリメニューに `.desktop` エントリを登録します。
 `./uninstall.sh` は `data` を残してアプリを削除します（`--purge` でデータも削除）。
+`.deb` 版とポータブル版は同じデータフォルダを使うため、乗り換えてもランタイム・モデル・
+チャットはそのまま引き継がれます。
 
 Linux版はOVMS `python_on` パッケージと同じ Ubuntu 24.04 を対象にしています。ネイティブ
 ウィンドウには WebKitGTK を使います:
@@ -165,7 +163,11 @@ scripts/smoke-test.sh dist/LocArc/LocArc
 データはexeと同じフォルダの `data` に保存されます。配布するときは `dist/LocArc`
 フォルダごと固めます（Windowsはzip、Linuxは `tar.gz`）。Windowsは署名がないためSmartScreen
 警告が出る場合があります（*詳細情報 → 実行*）。Linuxは展開して `./install.sh` を実行するか、
-実行ファイルを直接起動します。
+実行ファイルを直接起動します。Debian/Ubuntu 向けの `.deb` もビルドできます:
+
+```bash
+packaging/linux/build-deb.sh dist/LocArc 1.2.3 LocArc-linux-x64.deb
+```
 
 ビルド設定は `locarc.spec`（datas・windowed・UPXなし）にあります。CIは同じspecで
 WindowsとLinuxを `v*` タグでビルドし、それぞれの起動確認後に全ファイルをGitHubリリースへ
@@ -270,7 +272,7 @@ app/
   updater.py          自動更新の確認・適用処理（Windows / Linux）
   static/             SPA: index.html, app.js, i18n.js, style.css
 scripts/              補助スクリプト（smoke-test.ps1 / smoke-test.sh、リリースノート）
-packaging/linux/      Linux用 install.sh / uninstall.sh / .desktop テンプレート
+packaging/linux/      Linux用 install.sh / uninstall.sh / .desktop テンプレート / .debビルド
 tests/                バックエンドAPIテスト（pytest）
 .github/              ワークフローとIssue/PRテンプレート
 ```
@@ -300,7 +302,9 @@ python -m compileall -q app locarc.py
    ヘルパーはWindowsではPowerShell + robocopy、LinuxではPOSIX `sh` スクリプトです。
 
 `data` フォルダ（ランタイム・モデル・チャット・設定）は一切変更されません。起動時の確認は同じ
-カードで無効化できます。ソース実行の場合は `git pull` で更新してください。
+カードで無効化できます。ソース実行の場合は `git pull` で更新してください。Linux の `.deb` 版は
+パッケージ管理下のため、設定タブには更新ボタンの代わりにダウンロードリンクが表示されます
+（新しいパッケージをインストールして更新します）。
 
 > **v1.4.0以前**のビルドでは自動更新の適用に失敗することがあります（ヘルパースクリプトの起動方式
 > に問題があり、終了後に実行されませんでした）。更新後にアプリが再起動しない場合は、一度だけ
@@ -311,9 +315,9 @@ python -m compileall -q app locarc.py
 データの配置は変わっていません。実行ファイルと同じフォルダの `data` をそのまま使用します。
 ポータブル版は新しいバージョンを旧フォルダに上書き展開すればデータを引き継げます。Windows
 インストーラーは Inno Setup の App ID を変更していないため、旧インストール先と `data` を
-維持したままアップグレードします。Linux では `install.sh` が初回実行時に
-`~/.local/share/intel-ai-studio/data` を `~/.local/share/locarc/data` へコピーします。旧環境
-変数 `AI_STUDIO_DATA` も `LOCARC_DATA` の別名として引き続き使用できます。
+維持したままアップグレードします。Linux では `install.sh`（および `.deb` 版のランチャーが
+初回実行時）が `~/.local/share/intel-ai-studio/data` を `~/.local/share/locarc/data` へ
+コピーします。旧環境変数 `AI_STUDIO_DATA` も `LOCARC_DATA` の別名として引き続き使用できます。
 
 旧リポジトリ名（`Asahi-Prv/i-AI-Studio`）には旧 `Intel-AI-Studio-*` アセット名と旧レイアウトを
 含む互換リリースを置いているため、v1.14.x のビルドからも LocArc を自動で検出・導入できます。

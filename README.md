@@ -53,7 +53,7 @@ It manages the whole lifecycle in a native WebView2 window:
 
 Every [release](https://github.com/Asahi-Prv/locarc/releases) publishes Windows and Linux
 builds. Each bundles its own Python runtime and stores data (runtimes, models, chats, settings) in a
-`data` folder next to the executable.
+`data` folder next to the executable (the Linux `.deb` keeps it in `~/.local/share/locarc/data`).
 
 ### Windows
 
@@ -67,19 +67,15 @@ may show a SmartScreen warning because the binaries are unsigned (*More info →
 
 ### Linux (Ubuntu 24.04)
 
-Download `LocArc-linux-x64.tar.gz`. It is a portable folder that also ships a per-user
-installer:
+| Build | Download | How it runs |
+| --- | --- | --- |
+| **Installer** (recommended, Ubuntu/Debian) | `LocArc-linux-x64.deb` | `sudo apt install ./LocArc-linux-x64.deb` — installs the app to `/opt/locarc` with a `locarc` launcher and an application-menu entry. Your data stays in `~/.local/share/locarc/data`; update by installing the newer `.deb` (the in-app updater is disabled for package installs). |
+| **Portable** | `LocArc-linux-x64.tar.gz` | Extract it anywhere and run `./LocArc`, or run `./install.sh` for a per-user install (launcher + application-menu entry, no root required). |
 
-```bash
-tar -xzf LocArc-linux-x64.tar.gz
-cd LocArc
-./install.sh          # launcher + application-menu entry, no root required
-./LocArc          # or run it directly without installing
-```
-
-`install.sh` copies the app into `~/.local/share/locarc`, adds a `locarc`
+The portable `install.sh` copies the app into `~/.local/share/locarc`, adds a `locarc`
 command in `~/.local/bin`, and registers a `.desktop` entry. `./uninstall.sh` removes the app but
-keeps your `data`; add `--purge` to delete the data too.
+keeps your `data`; add `--purge` to delete the data too. The `.deb` and the portable install share
+the same data folder, so switching between them keeps your runtimes, models and chats.
 
 The Linux build targets the same Ubuntu 24.04 platform as the OVMS `python_on` packages. For a
 native window install WebKitGTK with:
@@ -172,7 +168,11 @@ scripts/smoke-test.sh dist/LocArc/LocArc
 The app keeps its data in a `data` folder next to the executable. To distribute, package the whole
 `dist/LocArc` folder — on Windows as a zip (users extract it and run the exe; SmartScreen
 may warn because it is unsigned), on Linux as a `tar.gz` (users extract it and run `./install.sh`
-or the executable directly).
+or the executable directly). On Debian/Ubuntu you can also build the `.deb` package:
+
+```bash
+packaging/linux/build-deb.sh dist/LocArc 1.2.3 LocArc-linux-x64.deb
+```
 
 Build configuration lives in `locarc.spec` (datas, windowed mode, no UPX). CI builds the
 same spec for Windows and Linux on tags matching `v*`, smoke-tests each executable, and attaches
@@ -280,7 +280,7 @@ app/
   updater.py          Self-update checks and apply logic (Windows/Linux)
   static/             SPA: index.html, app.js, i18n.js, style.css
 scripts/              Helper scripts (smoke-test.ps1 / smoke-test.sh, release notes)
-packaging/linux/      Linux install.sh, uninstall.sh and .desktop template
+packaging/linux/      Linux install.sh, uninstall.sh, .desktop template and .deb build
 tests/                Backend API tests (pytest)
 .github/              Workflows and issue/PR templates
 ```
@@ -310,7 +310,9 @@ update in one click:
    is PowerShell + robocopy on Windows and a POSIX `sh` script on Linux.
 
 Your `data` folder (runtimes, models, chats, settings) is never touched. The startup check can be
-disabled in the same card. When running from source, use `git pull` instead.
+disabled in the same card. When running from source, use `git pull`; when installed from the
+Linux `.deb` (package-managed), Settings shows the download link instead of the update button —
+install the newer package to upgrade.
 
 > Builds up to **v1.4.0** could fail to apply an update automatically (the helper script was
 > started in a way that stopped it from running after the app exited). If an update does not
@@ -321,9 +323,9 @@ disabled in the same card. When running from source, use `git pull` instead.
 The data layout has not changed: the app still uses the `data` folder next to the executable.
 Portable builds keep using it when you extract the new version over the old folder. The Windows
 installer keeps the previous installation folder and its `data` when upgrading (the Inno Setup
-App ID is unchanged). On Linux, `install.sh` copies `~/.local/share/intel-ai-studio/data` to
-`~/.local/share/locarc/data` the first time it runs. The old `AI_STUDIO_DATA` environment
-variable is still accepted as an alias for `LOCARC_DATA`.
+App ID is unchanged). On Linux, `install.sh` (and the `.deb` launcher on first run) copies
+`~/.local/share/intel-ai-studio/data` to `~/.local/share/locarc/data`. The old `AI_STUDIO_DATA`
+environment variable is still accepted as an alias for `LOCARC_DATA`.
 
 The old repository name (`Asahi-Prv/i-AI-Studio`) hosts a compatibility release with the legacy
 `Intel-AI-Studio-*` asset names and app layout, so v1.14.x builds can still find and install

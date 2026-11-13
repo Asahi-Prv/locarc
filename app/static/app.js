@@ -227,10 +227,13 @@ function renderUpdate() {
   const link = $("#updReleaseLink");
   const status = $("#updStatus");
   const sourceNote = info.frozen ? "" : ` / ${t("settings.update_source_note")}`;
+  // system-package installs (e.g. the .deb) cannot replace themselves -> point
+  // at a manual download instead of showing a button that would fail
+  const managedNote = info.frozen && !info.self_update ? ` / ${t("settings.update_managed_note")}` : "";
   if (info.available) {
-    status.textContent = t("settings.update_available", { v: info.latest }) + sourceNote;
+    status.textContent = t("settings.update_available", { v: info.latest }) + sourceNote + managedNote;
     runBtn.textContent = t("settings.update_btn", { v: info.latest });
-    runBtn.classList.toggle("hidden", !info.frozen);
+    runBtn.classList.toggle("hidden", !info.self_update);
     if (info.html_url) link.href = info.html_url;
     link.classList.toggle("hidden", !info.html_url);
     dot.classList.remove("hidden");
@@ -239,7 +242,7 @@ function renderUpdate() {
       toast(t("settings.update_toast", { v: info.latest }));
     }
   } else {
-    status.textContent = t("settings.update_latest") + sourceNote;
+    status.textContent = t("settings.update_latest") + sourceNote + managedNote;
     runBtn.classList.add("hidden");
     link.classList.add("hidden");
     dot.classList.add("hidden");
@@ -258,7 +261,7 @@ $("#chkUpdateCheck").addEventListener("change", async () => {
 
 $("#btnUpdateRun").addEventListener("click", async () => {
   const info = state.update;
-  if (!info || !info.available || !info.frozen) return;
+  if (!info || !info.available || !info.self_update) return;
   const label = t("settings.update_btn", { v: info.latest });
   if (!(await confirmDlg(t("settings.update_confirm", { v: info.latest }), label))) return;
   try {

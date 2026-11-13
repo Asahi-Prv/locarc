@@ -45,7 +45,18 @@ Windows may show a SmartScreen warning because the executables are unsigned — 
 
 ### Linux (Ubuntu 24.04)
 
-Download `LocArc-linux-x64.tar.gz`, then either run it from anywhere or install it per-user:
+**Installer (recommended, Ubuntu/Debian)** — download `LocArc-linux-x64.deb` and install it:
+
+```bash
+sudo apt install ./LocArc-linux-x64.deb
+```
+
+It adds the `locarc` launcher and an application-menu entry. To update, install the newer
+`.deb` (the in-app updater is disabled for package installs). Uninstalling keeps your data;
+remove `~/.local/share/locarc/data` to delete it.
+
+**Portable** — download `LocArc-linux-x64.tar.gz`, then either run it from anywhere or install
+it per-user:
 
 ```bash
 tar -xzf LocArc-linux-x64.tar.gz
@@ -53,12 +64,13 @@ cd LocArc
 ./install.sh        # adds a launcher and an application-menu entry (no root needed)
 ```
 
-Run `./uninstall.sh` to remove it (add `--purge` to delete user data too). A native window needs
-WebKitGTK (`sudo apt install python3-gi gir1.2-webkit2-4.1`); without it the app opens in your
-browser instead.
+Run `./uninstall.sh` to remove it (add `--purge` to delete user data too).
 
-All data (runtimes, models, chats, settings) is stored in a `data` folder next to the executable
-and is preserved across upgrades.
+A native window needs WebKitGTK (`sudo apt install python3-gi gir1.2-webkit2-4.1`); without it
+the app opens in your browser instead.
+
+All data (runtimes, models, chats, settings) is preserved across upgrades: the `.deb` keeps it
+in `~/.local/share/locarc/data`, portable builds next to the executable.
 """
 
 
