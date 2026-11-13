@@ -332,6 +332,44 @@ def detect_kind(d: Path) -> str:
     return "unknown"
 
 
+# config.json architecture names that mark a vision-language model. HF VLM repos
+# (and the OpenVINO conversions of them) always ship an image-processor config as
+# well, so "preprocessor_config.json" is the primary signal; these tokens catch
+# exports that dropped it ("vl" matches Qwen2VL / Qwen3VL style names).
+_VLM_ARCH_TOKENS = ("vl", "vision", "llava", "idefics", "kosmos", "paligemma",
+                    "internvl", "minicpmv", "mllama", "moondream", "cogvlm", "fuyu")
+
+
+def _vlm_architectures(d: Path) -> bool:
+    try:
+        cfg = json.loads((d / "config.json").read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    archs = cfg.get("architectures")
+    for a in archs if isinstance(archs, list) else []:
+        name = re.sub(r"[^a-z0-9]", "", str(a).lower())
+        if name and any(tok in name for tok in _VLM_ARCH_TOKENS):
+            return True
+    return False
+
+
+def is_multimodal(d: Path) -> bool:
+    """True when a text-generation model accepts image input (VLM pipeline).
+
+    Probes the model folder (top level plus one level down, like detect_kind)
+    for an image-processor config or a VLM architecture in config.json.
+    """
+    if not d.is_dir():
+        return False
+    dirs = [d]
+    try:
+        dirs += [p for p in d.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    except OSError:
+        pass
+    return any((sub / "preprocessor_config.json").is_file() or _vlm_architectures(sub)
+               for sub in dirs)
+
+
 def model_size_bytes(name: str) -> int:
     d = MODELS_DIR / name
     return _dir_size(d) if d.is_dir() else 0

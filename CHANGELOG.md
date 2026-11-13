@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Chat attachments: the composer has an attach button (also paste and drag & drop)
+  for text files and images. Text files (.txt, .md, .csv, source code, ...) are inlined
+  into the prompt as fenced blocks; images are sent as OpenAI-style `image_url` parts,
+  so vision-capable models (e.g. Qwen2.5-VL, LLaVA) can see them. Attachments render as
+  thumbnails/chips in the chat, survive reloads and re-sends, and big images are
+  downscaled client-side to keep prompt payloads small.
+- Multimodal gating: the app detects whether the loaded model accepts image input
+  (image-processor config or VLM architecture in the model folder) and exposes it via
+  the status and load-options APIs. On text-only models image attachments are rejected
+  with a clear message, the attach button explains the limitation in its tooltip, and
+  the load dialog notes when a model supports image input.
+- Composer gating: without a ready model the Send and attach buttons are disabled
+  (the textarea stays editable for drafting while a model loads); pasting or dropping
+  files with nothing loaded shows the "no model" hint instead of attaching.
+
 ## [2.2.1] - 2026-11-13
 
 ### Changed

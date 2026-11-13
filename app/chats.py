@@ -120,6 +120,9 @@ def _clean_messages(src) -> list[dict]:
         think = str(m.get("think") or "")
         if think:
             msg["think"] = think[:20000]
+        att = _clean_attachments(m.get("attachments"))
+        if att:
+            msg["attachments"] = att
         stats = m.get("stats")
         if isinstance(stats, dict):
             clean = {}
@@ -131,6 +134,40 @@ def _clean_messages(src) -> list[dict]:
                 msg["stats"] = clean
         msgs.append(msg)
     return msgs
+
+
+# per-attachment cap on the stored base64 payload (data URL text, ~6 MB binary)
+_MAX_ATTACHMENT_CHARS = 8 * 1024 * 1024
+
+
+def _clean_attachments(src) -> list[dict]:
+    """User-message attachments: text file contents and image data URLs.
+
+    The chat UI keeps them so later turns still show the file to the model
+    (text is re-inlined, images are sent as image_url parts) and so the bubble
+    can render a thumbnail/chip after a reload.
+    """
+    out = []
+    if not isinstance(src, list):
+        return out
+    for a in src:
+        if not isinstance(a, dict):
+            continue
+        kind = a.get("kind")
+        if kind not in ("text", "image"):
+            continue
+        data = a.get("data")
+        if not isinstance(data, str) or not data or len(data) > _MAX_ATTACHMENT_CHARS:
+            continue
+        out.append({
+            "kind": kind,
+            "name": str(a.get("name") or "")[:200],
+            "mime": str(a.get("mime") or "")[:100],
+            "data": data,
+        })
+        if len(out) >= 8:
+            break
+    return out
 
 
 def _as_float(value, default: float) -> float:

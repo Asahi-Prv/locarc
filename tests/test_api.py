@@ -71,6 +71,31 @@ def test_chats_keep_think_and_stats():
     reset_config()
 
 
+def test_chats_keep_attachments():
+    reset_config()
+    cid = client.post("/api/chats").json()["id"]
+    body = {"messages": [
+        {"role": "user", "content": "what is this?", "attachments": [
+            {"kind": "image", "name": "pic.png", "mime": "image/png",
+             "data": "data:image/png;base64,AAAA"},
+            {"kind": "text", "name": "notes.txt", "mime": "text/plain", "data": "hello"},
+            {"kind": "audio", "name": "x.wav", "data": "data:audio/wav;base64,AAAA"},  # unsupported
+            {"kind": "text", "name": "big.txt", "data": "x" * (9 * 1024 * 1024)},      # too large
+            {"kind": "text", "name": "empty.txt", "data": ""},                          # empty
+        ]},
+    ]}
+    saved = client.put(f"/api/chats/{cid}", json=body).json()
+    att = saved["messages"][0]["attachments"]
+    assert [a["name"] for a in att] == ["pic.png", "notes.txt"]
+    assert att[0]["kind"] == "image"
+    reloaded = client.get(f"/api/chats/{cid}").json()
+    assert reloaded["messages"][0]["attachments"][1]["data"] == "hello"
+    # messages without attachments stay clean
+    client.put(f"/api/chats/{cid}", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert "attachments" not in client.get(f"/api/chats/{cid}").json()["messages"][0]
+    reset_config()
+
+
 def test_chat_history_export_import_reset():
     reset_config()
     cid = client.post("/api/chats").json()["id"]
@@ -124,6 +149,38 @@ def test_load_options_warns_missing_image_tokenizer():
     (model / "openvino_tokenizer.xml").write_text("<net/>", encoding="utf-8")
     r = client.get("/api/model/load_options?model=imgmodel")
     assert r.json()["warnings"] == []
+    reset_config()
+
+
+def test_load_options_detects_multimodal():
+    reset_config()
+    import shutil
+
+    from app.config import MODELS_DIR
+    vlm = MODELS_DIR / "vlm-test-ov"
+    vlm.mkdir(parents=True, exist_ok=True)
+    (vlm / "openvino_tokenizer.xml").write_text("<net/>", encoding="utf-8")
+    # primary signal: image processor config (all HF VLM repos ship one)
+    (vlm / "preprocessor_config.json").write_text("{}", encoding="utf-8")
+    r = client.get("/api/model/load_options?model=vlm-test-ov")
+    assert r.json()["kind"] == "text_generation"
+    assert r.json()["multimodal"] is True
+
+    # fallback: VLM architecture in config.json, no preprocessor config
+    (vlm / "preprocessor_config.json").unlink()
+    (vlm / "config.json").write_text(
+        '{"architectures": ["Qwen2VLForConditionalGeneration"]}', encoding="utf-8")
+    assert client.get("/api/model/load_options?model=vlm-test-ov").json()["multimodal"] is True
+
+    # plain text-only model
+    txt = MODELS_DIR / "textonly-test-ov"
+    txt.mkdir(parents=True, exist_ok=True)
+    (txt / "openvino_tokenizer.xml").write_text("<net/>", encoding="utf-8")
+    (txt / "config.json").write_text('{"architectures": ["Qwen3ForCausalLM"]}', encoding="utf-8")
+    r = client.get("/api/model/load_options?model=textonly-test-ov")
+    assert r.json()["multimodal"] is False
+    shutil.rmtree(vlm, ignore_errors=True)
+    shutil.rmtree(txt, ignore_errors=True)
     reset_config()
 
 

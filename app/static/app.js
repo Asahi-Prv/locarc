@@ -24,6 +24,7 @@ const state = {
   sending: false,
   abort: null,      // AbortController while streaming
   stream: null,     // in-flight reply: {chatId, chat, el, abort}; survives view/chat switches
+  pendingFiles: [], // composer attachments not sent yet: {kind, name, mime, size, data}
   stickBottom: true,        // chat autoscroll follows new output while true
   _statusSig: "",           // last rendered server status (skip DOM work when unchanged)
   _modelSelectSig: "",
@@ -763,7 +764,8 @@ function applyLoadWarnings(opts) {
   const hint = $("#ldKindHint");
   const kindKey = opts.kind && opts.kind !== "unknown" ? `load.kind.${opts.kind}` : "";
   hint.classList.toggle("hidden", !kindKey);
-  if (kindKey) hint.textContent = t(kindKey);
+  if (kindKey) hint.textContent = t(kindKey)
+    + (opts.kind === "text_generation" && opts.multimodal ? " " + t("load.kind.multimodal") : "");
   state._ldQuant = { quant: opts.quant || "", cw: !!opts.cw };
   refreshLlmOptionVisibility();
 }
@@ -890,7 +892,8 @@ async function loadStatus() {
   let st;
   try { st = await api("/api/server/status"); } catch { return; }
   const sig = JSON.stringify([st.running, st.ready, st.load_state, st.load_error, st.model,
-                              st.mode, st.device, st.pid, st.exit_code, st.started_at]);
+                              st.mode, st.device, st.pid, st.exit_code, st.started_at,
+                              st.multimodal]);
   if (sig === state._statusSig) return;  // nothing changed -> no DOM work
   state._statusSig = sig;
   state.status = st;
@@ -961,6 +964,13 @@ function renderModeUI() {
   $("#composerWrap").classList.toggle("hidden", !!loaded && !isChat);
   $("#paramsSide")?.classList.toggle("hidden", !!loaded && !isChat);
   $("#btnParams")?.classList.toggle("hidden", !!loaded && !isChat);
+  // attach button explains what the loaded model can take (text always; images: VLM only)
+  const btnAttach = $("#btnAttach");
+  if (btnAttach) {
+    btnAttach.dataset.i18nTitle = imagesAllowed() ? "chat.attach_title" : "chat.attach_text_only_title";
+    btnAttach.title = t(btnAttach.dataset.i18nTitle);
+  }
+  syncComposer();
   $("#imagePanel").classList.toggle("hidden", !isImage);
   if (loaded && !isChat && !isImage) {
     const ep = MODE_ENDPOINT[mode] || t("chat.endpoint_classic");
@@ -1311,6 +1321,260 @@ async function loadTasks() {
   if (needInstalled) loadInstalled();
 }
 
+// ------------------------------------------------------------ composer attachments
+// Text files are inlined into the prompt as fenced blocks; images are kept as
+// data URLs and sent as OpenAI-style image_url parts (multimodal models).
+
+const MAX_ATTACHMENTS = 6;        // total files per message
+const MAX_IMAGES = 4;             // images per message
+const MAX_TEXT_BYTES = 512 * 1024;      // text files are truncated beyond this
+const MAX_DATA_CHARS = 8 * 1024 * 1024; // base64 data URL cap per attachment
+const IMAGE_LONG_EDGE = 1568;     // larger images are downscaled for the model
+const IMAGE_KEEP_BYTES = 4 * 1024 * 1024;
+
+const DOC_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5z"/></svg>';
+
+const TEXT_EXTS = new Set(("txt md markdown csv tsv log json yaml yml xml html htm css js mjs cjs "
+  + "ts tsx jsx py rb php java kt kts c h cc cpp hpp cs go rs swift m mm sql sh bash zsh "
+  + "bat cmd ps1 psm1 ini cfg conf toml env diff patch lock gitignore properties").split(" "));
+const TEXT_MIMES = new Set(["application/json", "application/xml", "application/yaml",
+  "application/x-yaml", "application/javascript", "application/ecmascript",
+  "application/x-sh", "application/toml", "application/sql"]);
+
+// Image input needs a VLM. Unknown (old backend cache / not loaded yet) counts
+// as allowed; the send-time guard still catches a non-VLM model loaded later.
+function imagesAllowed() {
+  const st = state.status;
+  if (!st.running || !st.ready) return true;
+  return st.mode === "text_generation" && st.multimodal !== false;
+}
+
+function classifyFile(file) {
+  const type = file.type || "";
+  if (type.startsWith("image/")) return "image";
+  const name = file.name || "";
+  const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+  if (TEXT_EXTS.has(ext)) return "text";
+  if (type.startsWith("text/") || TEXT_MIMES.has(type)) return "text";
+  if (!ext && !type) return "text";  // extension-less files (Makefile, LICENSE...); NUL check guards
+  return "binary";
+}
+
+function loadImageEl(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image decode failed"));
+    img.src = url;
+  });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+}
+
+// Keep small images as-is; downscale big ones so prompt payloads stay sane.
+async function imageToDataUrl(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImageEl(url);
+    const long = Math.max(img.naturalWidth || 0, img.naturalHeight || 0);
+    if (long <= IMAGE_LONG_EDGE && file.size <= IMAGE_KEEP_BYTES) {
+      return await fileToDataUrl(file);
+    }
+    const scale = Math.min(1, IMAGE_LONG_EDGE / Math.max(1, long));
+    const w = Math.max(1, Math.round((img.naturalWidth || long) * scale));
+    const h = Math.max(1, Math.round((img.naturalHeight || long) * scale));
+    const cv = document.createElement("canvas");
+    cv.width = w;
+    cv.height = h;
+    cv.getContext("2d").drawImage(img, 0, 0, w, h);
+    const type = file.type === "image/png" ? "image/png" : "image/jpeg";
+    return cv.toDataURL(type, 0.9);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function addFiles(list) {
+  const files = Array.from(list || []);
+  if (!files.length) return;
+  if (!state.status.running) {  // idle: nothing to attach to (paste / drop path)
+    toast(t("chat.no_model"), true);
+    return;
+  }
+  for (const f of files) {
+    if (state.pendingFiles.length >= MAX_ATTACHMENTS) {
+      toast(t("chat.attach_too_many", { n: MAX_ATTACHMENTS }), true);
+      break;
+    }
+    const kind = classifyFile(f);
+    try {
+      if (kind === "image") {
+        if (!imagesAllowed()) {
+          toast(t("chat.attach_image_blocked"), true);
+          continue;
+        }
+        if (state.pendingFiles.filter(x => x.kind === "image").length >= MAX_IMAGES) {
+          toast(t("chat.attach_too_many", { n: MAX_IMAGES }), true);
+          break;
+        }
+        const data = await imageToDataUrl(f);
+        if (data.length > MAX_DATA_CHARS) {
+          toast(t("chat.attach_too_big", { name: f.name, limit: "6 MB" }), true);
+          continue;
+        }
+        state.pendingFiles.push({ kind: "image", name: f.name,
+          mime: f.type || "image/png", size: Math.round(data.length * 0.75), data });
+      } else if (kind === "text") {
+        let raw = await f.slice(0, MAX_TEXT_BYTES + 1).text();
+        if (raw.includes("\u0000")) {  // binary masquerading as text
+          toast(t("chat.attach_binary", { name: f.name }), true);
+          continue;
+        }
+        const truncated = raw.length > MAX_TEXT_BYTES;
+        if (truncated) raw = raw.slice(0, MAX_TEXT_BYTES);
+        const data = truncated ? raw + `\n\u2026 (${t("chat.attach_truncated")})` : raw;
+        state.pendingFiles.push({ kind: "text", name: f.name,
+          mime: f.type || "text/plain", size: data.length, data });
+      } else {
+        toast(t("chat.attach_binary", { name: f.name }), true);
+      }
+    } catch {
+      toast(t("chat.attach_read_failed", { name: f.name }), true);
+    }
+  }
+  renderAttachRow();
+}
+
+function renderAttachRow() {
+  const row = $("#attachRow");
+  row.classList.toggle("hidden", !state.pendingFiles.length);
+  row.innerHTML = "";
+  state.pendingFiles.forEach((a, i) => {
+    const chip = document.createElement("span");
+    chip.className = "attach-chip";
+    if (a.kind === "image") {
+      const img = document.createElement("img");
+      img.src = a.data;
+      img.alt = a.name || "image";
+      chip.appendChild(img);
+    } else {
+      const doc = document.createElement("span");
+      doc.className = "doc";
+      doc.innerHTML = DOC_SVG;
+      chip.appendChild(doc);
+    }
+    const name = document.createElement("span");
+    name.className = "n";
+    name.textContent = a.name || "file";
+    name.title = `${a.name || ""} · ${fmtBytes(a.size)}`;
+    const x = document.createElement("button");
+    x.type = "button";
+    x.className = "x";
+    x.textContent = "×";
+    x.title = t("common.delete");
+    x.addEventListener("click", () => {
+      state.pendingFiles.splice(i, 1);
+      renderAttachRow();
+    });
+    chip.append(name, x);
+    row.appendChild(chip);
+  });
+}
+
+// Stored user message -> OpenAI-compatible API content. Text attachments become
+// fenced blocks inside the text; images become image_url content parts.
+function messageContentParts(m) {
+  const atts = m.attachments || [];
+  const images = atts.filter(a => a.kind === "image" && a.data);
+  let text = m.content || "";
+  for (const a of atts) {
+    if (a.kind !== "text") continue;
+    const block = `--- file: ${a.name || "file"} ---\n\u0060\u0060\u0060\u0060\n${a.data || ""}\n\u0060\u0060\u0060\u0060`;
+    text = text ? `${text}\n\n${block}` : block;
+  }
+  if (!images.length) return text;
+  const parts = [];
+  if (text) parts.push({ type: "text", text });
+  for (const img of images) parts.push({ type: "image_url", image_url: { url: img.data } });
+  return parts;
+}
+
+function buildApiMessages(messages, systemPrompt) {
+  const out = [];
+  if (systemPrompt) out.push({ role: "system", content: systemPrompt });
+  for (const m of messages) {
+    if (m.role === "user" && (m.attachments || []).length) {
+      out.push({ role: "user", content: messageContentParts(m) });
+    } else {
+      out.push({ role: m.role, content: m.content });
+    }
+  }
+  return out;
+}
+
+function attachmentsEl(atts) {
+  const wrap = document.createElement("div");
+  wrap.className = "attach";
+  for (const a of atts) {
+    if (a.kind === "image" && a.data) {
+      const img = document.createElement("img");
+      img.src = a.data;
+      img.alt = a.name || "image";
+      img.title = a.name || "";
+      img.addEventListener("click", () => window.open(a.data, "_blank", "noopener"));
+      wrap.appendChild(img);
+    } else {
+      const chip = document.createElement("span");
+      chip.className = "attach-chip";
+      const doc = document.createElement("span");
+      doc.className = "doc";
+      doc.innerHTML = DOC_SVG;
+      const name = document.createElement("span");
+      name.className = "n";
+      name.textContent = a.name || (a.kind === "text" ? "file" : "attachment");
+      chip.title = a.kind === "text" ? String(a.data || "").slice(0, 500) : (a.mime || "");
+      chip.append(doc, name);
+      wrap.appendChild(chip);
+    }
+  }
+  return wrap;
+}
+
+$("#btnAttach").addEventListener("click", () => $("#composerFile").click());
+$("#composerFile").addEventListener("change", e => {
+  addFiles(e.target.files);
+  e.target.value = "";  // allow picking the same file again
+});
+$("#pgInput").addEventListener("paste", e => {
+  const files = Array.from((e.clipboardData || {}).files || []);
+  if (!files.length) return;
+  e.preventDefault();
+  addFiles(files);
+});
+{  // drag & drop onto the composer
+  const wrap = $("#composerWrap");
+  const box = $("#composer");
+  ["dragenter", "dragover"].forEach(ev => wrap.addEventListener(ev, e => {
+    e.preventDefault();
+    box.classList.add("dropping");
+  }));
+  ["dragleave", "drop"].forEach(ev => wrap.addEventListener(ev, e => {
+    e.preventDefault();
+    box.classList.remove("dropping");
+  }));
+  wrap.addEventListener("drop", e => {
+    const files = (e.dataTransfer || {}).files;
+    if (files && files.length) addFiles(files);
+  });
+}
+
 // ------------------------------------------------------------ chats
 
 async function loadChatList(selectId = null) {
@@ -1493,7 +1757,7 @@ function renderChat() {
   const col = log.firstChild;
   c.messages.forEach((m, i) => {
     if (m.role === "system") return;
-    col.appendChild(msgEl(m.role, m.content, m.think, m.stats, i));
+    col.appendChild(msgEl(m.role, m.content, m.think, m.stats, i, m.attachments));
   });
   // A reply that is still streaming lives in a detached element while another
   // chat (or view) is shown; move it back so the user sees live progress as-is.
@@ -1529,7 +1793,7 @@ function msgActions(role, text, el, index) {
   return row;
 }
 
-function msgEl(role, text, think, stats, index) {
+function msgEl(role, text, think, stats, index, attachments) {
   const el = document.createElement("div");
   el.className = "msg " + role;
   el.innerHTML = `<div class="who">${role === "user" ? "U" : "AI"}</div>
@@ -1553,6 +1817,7 @@ function msgEl(role, text, think, stats, index) {
     txt.innerHTML = renderMarkdown(text);
     meta.textContent = statsText(stats);
   } else {
+    if (attachments && attachments.length) body.insertBefore(attachmentsEl(attachments), txt);
     txt.textContent = text;
   }
   if (index !== undefined && index !== null) body.appendChild(msgActions(role, text, el, index));
@@ -1568,6 +1833,7 @@ function beginEdit(el, index) {
   }
   const body = el.querySelector(".body");
   if (body.querySelector(".editor")) return;
+  const keepAttachments = chat.messages[index].attachments;
   const editor = document.createElement("div");
   editor.className = "editor";
   const area = document.createElement("textarea");
@@ -1584,7 +1850,9 @@ function beginEdit(el, index) {
     const truncates = chat.messages.length > index + 1;
     if (truncates && !(await confirmDlg(t("chat.edit_truncates"), t("chat.save_resend")))) return;
     chat.messages = chat.messages.slice(0, index);
-    chat.messages.push({ role: "user", content: text });
+    const msg = { role: "user", content: text };
+    if (keepAttachments && keepAttachments.length) msg.attachments = keepAttachments;
+    chat.messages.push(msg);
     renderChat();
     await streamAssistantReply(chat);
   });
@@ -1737,12 +2005,21 @@ function saveChat(chat) {
 
 // One inference slot: while any chat streams, Send is hidden everywhere and
 // Stop is shown; its tooltip clarifies the target when the user looks elsewhere.
+// Without a ready model, Send and the attach button are disabled (the textarea
+// stays editable so a prompt can be drafted while the model is loading).
 function syncComposer() {
   const streaming = !!state.stream;
   const here = streaming && !!state.chat && state.stream.chatId === state.chat.id;
   $("#btnSend").classList.toggle("hidden", streaming);
   $("#btnAbort").classList.toggle("hidden", !streaming);
   $("#btnAbort").title = streaming && !here ? t("chat.stop_other") : t("chat.stop");
+  const st = state.status;
+  const ready = !!(st.running && st.ready);
+  const send = $("#btnSend");
+  send.disabled = !ready;
+  send.title = ready ? t("chat.send") : t("chat.send_needs_model");
+  // attaching already during the load is fine (pre-draft); idle is not
+  $("#btnAttach").disabled = !(ready || st.running);
 }
 
 async function sendChat() {
@@ -1752,20 +2029,31 @@ async function sendChat() {
   if (!st.running || !st.ready) { toast(t("chat.no_model"), true); return; }
   const input = $("#pgInput");
   const text = input.value.trim();
-  if (!text) return;
+  const pending = state.pendingFiles;
+  if (!text && !pending.length) return;
+  // a non-VLM model was loaded after the images were attached -> block here
+  if (pending.some(a => a.kind === "image") && !imagesAllowed()) {
+    toast(t("chat.attach_image_blocked"), true);
+    return;
+  }
   input.value = "";
 
   const chat = await ensureChat();
   chat.params = currentParams();
-  chat.messages.push({ role: "user", content: text });
+  const msg = { role: "user", content: text };
+  if (pending.length) msg.attachments = pending;
+  state.pendingFiles = [];
+  renderAttachRow();
+  chat.messages.push(msg);
   if (isDefaultTitle(chat.title)) {
-    chat.title = text.slice(0, 40);  // provisional; upgraded after the first answer
+    chat.title = (text || pending[0]?.name || text).slice(0, 40);  // provisional; upgraded after the first answer
     chat._autoTitle = true;
   }
 
   const log = $("#chatLog");
   if (log.querySelector(".empty-hint")) renderChat();
-  else log.firstChild.appendChild(msgEl("user", text, undefined, undefined, chat.messages.length - 1));
+  else log.firstChild.appendChild(msgEl("user", msg.content, undefined, undefined,
+                                        chat.messages.length - 1, msg.attachments));
   state.stickBottom = true;  // sending always re-follows the tail
   log.scrollTop = log.scrollHeight;
 
@@ -1870,9 +2158,7 @@ async function streamAssistantReply(chat) {
   syncComposer();
   saveChat(chat);  // persist the prompt immediately, not only when the reply lands
 
-  const reqMessages = chat.params.system_prompt
-    ? [{ role: "system", content: chat.params.system_prompt }, ...chat.messages]
-    : chat.messages;
+  const reqMessages = buildApiMessages(chat.messages, chat.params.system_prompt);
   const body = {
     model: st.model,
     messages: reqMessages,
@@ -2018,7 +2304,9 @@ async function generateChatTitle(chat, force = false) {
   if (state._titleAbort) return false;  // one title request at a time
   const st = state.status;
   if (!st.running || !st.ready) return false;  // keep _autoTitle: retry when the model is back
-  const firstUser = (chat.messages.find(m => m.role === "user") || {}).content || "";
+  const firstUserMsg = chat.messages.find(m => m.role === "user") || {};
+  const firstUser = firstUserMsg.content
+    || (firstUserMsg.attachments || []).map(a => a.name).filter(Boolean).join(", ");
   const firstAnswer = (chat.messages.find(m => m.role === "assistant") || {}).content || "";
   if (!firstUser || !firstAnswer) return false;
   const controller = new AbortController();

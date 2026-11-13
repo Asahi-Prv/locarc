@@ -358,6 +358,7 @@ def api_load_options(model: str):
     return {
         "devices": devices,
         "kind": kind,
+        "multimodal": modelsvc.is_multimodal(model_dir) if kind == "text_generation" else False,
         "warnings": warnings,
         "quant": quant["precision"],
         "cw": quant["cw"],

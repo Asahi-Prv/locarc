@@ -81,10 +81,16 @@
 
       <div id="composerWrap">
         <div id="composer">
+          <div id="attachRow" class="hidden"></div>
           <button id="btnParams" class="btn small" data-i18n-title="chat.params_toggle" title="生成パラメータの表示/非表示">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10v2H4zM18 6h2v2h-2zM4 16h2v2H4zM10 16h10v2H10z"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
             <span data-i18n="chat.params_button">パラメータ</span>
           </button>
+          <button id="btnAttach" class="btn small icon" data-i18n-title="chat.attach_title" title="テキストファイルや画像を添付（画像はマルチモーダルLLMで利用できます）">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 6v11.5a4.5 4.5 0 0 1-9 0V5a3 3 0 0 1 6 0v10.5a1.5 1.5 0 0 1-3 0V6H9v9.5a3 3 0 0 0 6 0V5a4.5 4.5 0 0 0-9 0v12.5a6 6 0 0 0 12 0V6z"/></svg>
+          </button>
+          <input id="composerFile" type="file" multiple class="hidden"
+                 accept="text/*,.txt,.md,.markdown,.csv,.tsv,.log,.json,.yaml,.yml,.xml,.html,.htm,.css,.js,.mjs,.ts,.tsx,.jsx,.py,.rb,.php,.java,.kt,.c,.h,.cc,.cpp,.hpp,.cs,.go,.rs,.swift,.m,.sql,.sh,.bash,.bat,.cmd,.ps1,.ini,.cfg,.conf,.toml,.env,.diff,.patch,image/*">
           <textarea id="pgInput" rows="2" data-i18n-placeholder="chat.input_placeholder" placeholder="メッセージを入力（Enterで送信 / Shift+Enterで改行）"></textarea>
           <button id="btnSend" class="btn primary icon" data-i18n-title="chat.send" title="送信">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.6l17.8-8.6L3.4 3.4l.1 6.6L15 12 3.5 14z"/></svg>

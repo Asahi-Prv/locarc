@@ -190,17 +190,38 @@ body {
 /* composer: a single outlined box, ChatGPT style */
 #composerWrap { background: transparent; padding: 10px 16px 14px; }
 #composer {
-  max-width: var(--chatw); margin: 0 auto; display: flex; gap: 8px; align-items: flex-end;
+  max-width: var(--chatw); margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;
   background: var(--bg); border: 1px solid var(--border); border-radius: 14px;
   padding: 8px; transition: border-color var(--t);
 }
 #composer:focus-within { border-color: var(--border-strong); }
+#composer.dropping { border-color: var(--accent); }
 #composer .btn { border-radius: 6px; } /* nested radius: 14 - 8 = 6 */
 #composer textarea {
   flex: 1; resize: none; max-height: 30vh;
   background: transparent; border: 0; padding: 7px 6px;
 }
 #composer textarea:focus { border-color: transparent; }
+/* pending attachments strip (full-width row above the input controls) */
+#attachRow { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px 4px; }
+.attach-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 260px;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 4px 8px; font-size: 12px;
+}
+.attach-chip img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
+.attach-chip .doc { display: inline-flex; }
+.attach-chip .doc svg { width: 16px; height: 16px; fill: var(--muted); flex: 0 0 auto; }
+.attach-chip .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attach-chip .x { border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; padding: 0 2px; }
+.attach-chip .x:hover { color: var(--text); }
+/* attachments shown inside sent user messages */
+.msg .attach { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.msg .attach img {
+  max-width: 240px; max-height: 200px; border-radius: 8px;
+  border: 1px solid var(--border); cursor: zoom-in;
+}
+.msg .attach .attach-chip { max-width: 320px; }
 #playNote { max-width: var(--chatw); margin: 6px auto 0; font-size: 12px; }
 
 #paramsPanel { max-width: var(--chatw); margin: 0 auto 10px; background: var(--panel);
@@ -263,6 +284,8 @@ a.btn { text-decoration: none; }
 .btn.ghost:hover { background: var(--panel2); color: var(--text); }
 .btn.small { padding: 4px 10px; font-size: 12px; }
 .btn:disabled { opacity: .45; cursor: default; }
+.btn:disabled:hover { background: transparent; border-color: var(--border); }
+.btn.primary:disabled:hover { background: var(--accent); border-color: var(--accent); }
 .hidden { display: none !important; }
 
 .list { display: flex; flex-direction: column; gap: 8px; }
