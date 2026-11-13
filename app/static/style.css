@@ -59,7 +59,7 @@ body {
   width: 260px; padding: 12px; background: var(--panel);
   border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;
 }
-.brand { font-weight: 700; letter-spacing: .3px; padding: 2px 4px 8px; }
+.brand { font-weight: 600; letter-spacing: .3px; padding: 2px 4px 8px; }
 .sessions { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .sess-actions { display: flex; gap: 6px; }
 .sess-actions .btn { flex: 1; justify-content: center; padding: 6px 4px; font-size: 12px; }
@@ -87,7 +87,7 @@ body {
 #setupCard { border-bottom: 1px solid var(--border); background: var(--panel); }
 .setup-inner { max-width: var(--chatw); margin: 0 auto; padding: 16px; }
 .setup-inner h2 { margin: 0 0 10px; font-size: 16px; color: var(--text); }
-.setup-steps { display: flex; gap: 18px; margin-bottom: 8px; flex-wrap: wrap; }
+.setup-steps { display: flex; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
 .step { font-size: 13px; color: var(--muted); }
 .step.ok { color: var(--text); }
 .step.ng { color: var(--muted); border-bottom: 1px dashed var(--border-strong); }
@@ -135,18 +135,18 @@ body {
 }
 
 #chatHeader {
-  display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
   border-bottom: 1px solid var(--border); background: transparent;
 }
 #chatHeader select { max-width: 460px; }
 
 .chatlog { flex: 1; overflow-y: auto; padding: 20px 16px 8px; }
 .chatcol { max-width: var(--chatw); margin: 0 auto; }
-.msg { margin: 0 0 18px; display: flex; gap: 10px; }
+.msg { margin: 0 0 16px; display: flex; gap: 10px; }
 .msg .who {
   flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; background: transparent;
+  font-size: 12px; font-weight: 600; background: transparent;
   border: 1px solid var(--border-strong); color: var(--muted);
 }
 .msg.user .who { background: var(--accent); border-color: var(--accent); color: #ffffff; }
@@ -195,6 +195,7 @@ body {
   padding: 8px; transition: border-color var(--t);
 }
 #composer:focus-within { border-color: var(--border-strong); }
+#composer .btn { border-radius: 6px; } /* nested radius: 14 - 8 = 6 */
 #composer textarea {
   flex: 1; resize: none; max-height: 30vh;
   background: transparent; border: 0; padding: 7px 6px;
@@ -213,7 +214,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 /* ---------------- cards (models/settings) ---------------- */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } }
-.card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+.card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
 .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--text); }
 .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
 .lbl { min-width: 110px; color: var(--muted); }
@@ -285,7 +286,7 @@ a.btn { text-decoration: none; }
 .warnline { color: var(--warn); margin-top: 4px; }
 .tag.selected { color: #ffffff; background: var(--accent); border-color: var(--accent); }
 
-.imgwrap { padding: 18px 0; }
+.imgwrap { padding: 16px 0; }
 #imgOut { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 12px; }
 #imgOut img { max-width: 420px; width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
 #imgOut .gen-note { color: var(--muted); font-size: 12px; margin-top: 4px; }
@@ -318,7 +319,7 @@ a.btn { text-decoration: none; }
 #toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
   background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
-  padding: 10px 18px; border-radius: var(--radius); z-index: 60; box-shadow: var(--shadow);
+  padding: 10px 16px; border-radius: var(--radius); z-index: 60; box-shadow: var(--shadow);
   animation: toast-in .18s ease;
 }
 #toast.err { border: 1.5px solid var(--text); color: var(--text); }
