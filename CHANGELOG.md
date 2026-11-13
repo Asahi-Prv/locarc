@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-13
+
+### Changed
+
+- Interface polish: paddings across the cards, chat header, message list, image panel and
+  toast now sit on a consistent 4px scale (18px values became 16px), the buttons inside the
+  composer use the nested corner radius (6px inside the 14px composer), the sidebar brand
+  and message avatars are semibold instead of bold, and the title-generation button shows a
+  pencil icon instead of the generic AI sparkle. No functional changes.
+
 ## [2.2.0] - 2026-11-06
 
 ### Added
