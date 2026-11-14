@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-11-14
+
+### Added
+
+- Translation models: chat templates that require `target_lang` (e.g. the PFML3 format of
+  `pfnet/plamo-3-translate-*`) are detected from the model folder and the chat sidebar exposes
+  the translation options — target language (required), source language (auto-detect), the
+  Japanese style (`polite`/`plain`), an optional reference context and a glossary
+  (`source=translation`, one term per line). They are forwarded as `chat_template_kwargs`, the
+  model's recommended stop tokens are appended, the system prompt is dropped (those templates
+  reject system messages), sending without a target language is blocked with a hint, and
+  auto-titling is skipped for these models.
+- Tokenizer-IR warning for every GenAI task: the load dialog now warns about a missing
+  `openvino_tokenizer.xml` for text generation, embeddings, rerank and speech models too
+  (previously image generation only), and the detected-kind line marks translation-specialized
+  templates.
+
 ## [2.4.0] - 2026-11-14
 
 ### Added
