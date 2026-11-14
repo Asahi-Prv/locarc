@@ -53,17 +53,14 @@ def test_chats_use_request_language():
     assert client.post("/api/chats", headers={"Accept-Language": "en"}).json()["title"] == "New chat"
 
 
-def test_chat_translation_params_roundtrip():
+def test_chat_template_kwargs_roundtrip():
     reset_config()
     cid = client.post("/api/chats").json()["id"]
-    assert client.get(f"/api/chats/{cid}").json()["params"]["target_lang"] == ""
+    assert client.get(f"/api/chats/{cid}").json()["params"]["template_kwargs"] == ""
     chat = client.put(f"/api/chats/{cid}", json={"params": {
-        "target_lang": "ja", "source_lang": "en", "form": "polite",
-        "context": "help page of a tool", "glossary": "dashboard=管理画面",
+        "template_kwargs": '{"target_lang": "ja", "form": "polite"}',
     }}).json()
-    p = chat["params"]
-    assert p["target_lang"] == "ja" and p["source_lang"] == "en" and p["form"] == "polite"
-    assert p["context"] == "help page of a tool" and p["glossary"] == "dashboard=管理画面"
+    assert chat["params"]["template_kwargs"] == '{"target_lang": "ja", "form": "polite"}'
 
 
 def test_chats_keep_think_and_stats():
@@ -187,42 +184,43 @@ def test_load_options_warns_missing_tokenizer():
     reset_config()
 
 
-def test_load_options_detects_translation_template():
+def test_load_options_detects_template_vars():
     reset_config()
     import json
     import shutil
 
     from app.config import MODELS_DIR
-    model = MODELS_DIR / "translate-test-ov"
+    model = MODELS_DIR / "template-vars-test-ov"
     model.mkdir(parents=True, exist_ok=True)
     (model / "openvino_tokenizer.xml").write_text("<net/>", encoding="utf-8")
     (model / "generation_config.json").write_text("{}", encoding="utf-8")
-    # PFML3-style template (pfnet/plamo-3-translate-*): target_lang is required
+    # translation-style template: extra kwargs are introspected from the Jinja
+    # source; Jinja/Transformers builtins and enable_thinking are filtered out
     (model / "chat_template.jinja").write_text(
-        "{{ bos_token }}<|plamo:tag|>dataset<|plamo:msg|>translation"
-        "{% if target_lang is not defined %}target_lang is required{% endif %}",
+        "{%- set pairs = [] -%}"
+        "{%- if not messages or tools or documents %}{{ raise_exception('bad') }}{% endif -%}"
+        "{%- if enable_thinking is defined %}{% endif -%}"
+        "{{ bos_token }}{{ eos_token }}{{ add_generation_prompt }}{{ strftime_now('x') }}"
+        "{%- if target_lang is not defined %}{{ raise_exception('target_lang is required') }}{% endif -%}"
+        "{{ target_lang }}{{ source_lang }}{{ context }}{{ form }}{{ glossary }}"
+        "{{ pairs }}{{ loop.index if false else '' }}",
         encoding="utf-8")
-    r = client.get("/api/model/load_options?model=translate-test-ov").json()
+    r = client.get("/api/model/load_options?model=template-vars-test-ov").json()
     assert r["kind"] == "text_generation"
-    assert r["translation"]["target_lang"] is True
-    assert r["translation"]["prompt"] == "pfml3"
-    assert r["translation"]["stop"] == ["<|plamo:tag|>", "<|plamo:bos|>"]
+    assert r["template_vars"] == ["context", "form", "glossary", "source_lang", "target_lang"]
 
-    # tokenizer_config.json's chat_template is used when no .jinja file exists,
-    # and the optional kwargs are detected from the template source
+    # tokenizer_config.json's chat_template is the fallback when no .jinja exists
     (model / "chat_template.jinja").unlink()
     (model / "tokenizer_config.json").write_text(
-        json.dumps({"chat_template": "{{ target_lang }} {{ context }} {{ form }}"}),
+        json.dumps({"chat_template": "{{ messages }} {{ target_lang_code }}"}),
         encoding="utf-8")
-    tr = client.get("/api/model/load_options?model=translate-test-ov").json()["translation"]
-    assert tr["context"] is True and tr["form"] is True
-    assert tr["source_lang"] is False and tr["glossary"] is False
-    assert tr["prompt"] == "generic" and tr["stop"] == []
+    assert client.get("/api/model/load_options?model=template-vars-test-ov").json()["template_vars"] \
+        == ["target_lang_code"]
 
-    # a regular chat template is not a translation model
+    # plain chat templates have no extra parameters
     (model / "tokenizer_config.json").write_text(
-        json.dumps({"chat_template": "{{ messages }}"}), encoding="utf-8")
-    assert client.get("/api/model/load_options?model=translate-test-ov").json()["translation"] is None
+        json.dumps({"chat_template": "{{ messages }} {{ bos_token }}"}), encoding="utf-8")
+    assert client.get("/api/model/load_options?model=template-vars-test-ov").json()["template_vars"] == []
 
     shutil.rmtree(model, ignore_errors=True)
     reset_config()

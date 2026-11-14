@@ -708,7 +708,7 @@ class OVMServer:
             if self._api_key:
                 env["API_KEY"] = self._api_key
                 self.logs.append(f"[info] {tr(lang, 'log.api_key_enabled')}")
-            from .models import is_multimodal, translation_info  # lazy: avoid a circular import
+            from .models import chat_template_vars, is_multimodal  # lazy: avoid a circular import
             self.proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, errors="replace", bufsize=1, env=env,
@@ -722,7 +722,7 @@ class OVMServer:
             self.info = {
                 "model": model, "mode": resolved, "device": device,
                 "multimodal": bool(is_multimodal(model_dir)) if resolved == "text_generation" else False,
-                "translation": translation_info(model_dir) if resolved == "text_generation" else None,
+                "template_vars": chat_template_vars(model_dir) if resolved == "text_generation" else [],
                 "rest_port": rest_port, "grpc_port": grpc_port,
                 "bind_address": bind_address,
                 "runtime_id": runtime_id, "started_at": time.time(),

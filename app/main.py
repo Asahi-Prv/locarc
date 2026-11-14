@@ -363,7 +363,7 @@ def api_load_options(model: str):
         "devices": devices,
         "kind": kind,
         "multimodal": modelsvc.is_multimodal(model_dir) if kind == "text_generation" else False,
-        "translation": modelsvc.translation_info(model_dir) if kind == "text_generation" else None,
+        "template_vars": modelsvc.chat_template_vars(model_dir) if kind == "text_generation" else [],
         "warnings": warnings,
         "quant": quant["precision"],
         "cw": quant["cw"],

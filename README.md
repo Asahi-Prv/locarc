@@ -35,9 +35,10 @@ It manages the whole lifecycle in a native WebView2 window:
   recommended values.
 - **Chat** – streaming chat with Markdown rendering, thinking-content support, auto-generated
   titles, per-chat generation parameters, and persisted chat history that can be exported to
-  JSON, imported (merged) and reset from the sidebar. Translation-specialized models (e.g.
-  PLaMo 3 Translate) are recognized automatically and the sidebar exposes their template options
-  (target/source language, plain/polite style, reference context, glossary).
+  JSON, imported (merged) and reset from the sidebar. Chat templates that take extra parameters
+  (translation models are the common case) get an automatic parameter section — the names come
+  from the model's own template, nothing model-specific is hardcoded (see
+  [Chat template parameters](#chat-template-parameters)).
 - **Generate images** – for `image_generation` models.
 - **Usage statistics** – a Statistics tab records every run locally (model, device, OVMS
   runtime, prompt/completion tokens, TTFT, tok/s, success rate) with per-model breakdowns and
@@ -196,23 +197,22 @@ network access, a few hundred MB, once per runtime) and then converts the tokeni
 later conversions reuse the installed tools. The warning covers every GenAI task
 (text generation, embeddings, rerank, speech, ...), not only image generation.
 
-## Translation models
+## Chat template parameters
 
-Translation-specialized chat templates — for example the PFML3 format of
-[`pfnet/plamo-3-translate-*`](https://huggingface.co/pfnet/plamo-3-translate-0.8b) — are detected
-from the model folder (`chat_template.jinja`, falling back to `tokenizer_config.json`). While
-such a model is loaded, the parameters sidebar adds the translation fields:
+Some chat templates take extra parameters — translation models are the common case. The app
+introspects the model's template (`chat_template.jinja`, falling back to `tokenizer_config.json`)
+and adds an input for every parameter it references; built-ins provided by Transformers and the
+sidebar's own "suppress thinking" control are excluded. The values are forwarded to OVMS as
+`chat_template_kwargs`; text that parses as JSON (`true`/`false`, numbers, `[...]`, `{...}`) is
+sent as that JSON value. LocArc holds no per-model knowledge — the parameter names, values and
+formats come from the model itself.
 
-- **Target language** (required — the template refuses to render without it),
-- **Source language** (auto-detect by default),
-- **Style** for Japanese targets (`polite` / `plain`),
-- an optional reference **context** and a **glossary** (`source=translation`, one term per line).
-
-They are forwarded to OVMS as `chat_template_kwargs`, and the model's recommended stop tokens
-are appended so the translation ends before the next special token. The system prompt is not
-sent (those templates reject system messages); sending without a target language is blocked with
-a hint. See the [PLaMo 3 Translate model card](https://huggingface.co/pfnet/plamo-3-translate-0.8b)
-for the prompt format.
+For example, for
+[`pfnet/plamo-3-translate-0.8b`](https://huggingface.co/pfnet/plamo-3-translate-0.8b) the sidebar
+shows `target_lang` (required, e.g. `ja`), `source_lang`, `form` (`plain` / `polite`), `context`
+and `glossary` (JSON list, e.g. `[{"source": "owner", "target": "オーナー"}]`). See the model
+card for what each parameter does. Templates that reject system messages (also common for
+translation models) work as long as the system prompt is left empty.
 
 ## Using the model API from other apps
 

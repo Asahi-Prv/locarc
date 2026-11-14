@@ -22,17 +22,13 @@ DEFAULT_PARAMS: dict = {
     "repetition_penalty": 1.0,
     "system_prompt": "",
     "suppress_thinking": False,  # -> chat_template_kwargs.enable_thinking=false (supported models)
-    # translation models (PFML3-style templates, e.g. PLaMo 3 Translate):
-    # forwarded as chat_template_kwargs; glossary stays a textarea-style string
-    "target_lang": "",
-    "source_lang": "",
-    "form": "",        # "" / "plain" / "polite" (target_lang=ja only)
-    "context": "",
-    "glossary": "",
+    # extra chat_template_kwargs (JSON object text); the parameter names come
+    # from the model's own chat template (see models.chat_template_vars)
+    "template_kwargs": "",
 }
 _PARAM_FLOAT = ("temperature", "top_p", "repetition_penalty")
 _PARAM_INT = ("top_k", "max_tokens")
-_PARAM_STR = ("system_prompt", "target_lang", "source_lang", "form", "context", "glossary")
+_PARAM_STR = ("system_prompt", "template_kwargs")
 _PARAM_BOOL = ("suppress_thinking",)
 
 

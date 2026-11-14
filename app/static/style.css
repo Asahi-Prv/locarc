@@ -126,9 +126,10 @@ body {
 #paramsSide .pgrid { grid-template-columns: 1fr; gap: 4px; }
 #paramsSide .pgrid label { margin-top: 8px; }
 #paramsSide textarea { width: 100%; resize: vertical; min-height: 88px; }
-#paramsSide select { width: 100%; }
-#paramsSide textarea.trg-area { min-height: 56px; }
-#paramsSide #trgNote { margin: 2px 0 0; }
+#paramsSide #tplBlock > label,
+#paramsSide #tplFields label { display: block; color: var(--muted); font-size: 13px; margin-top: 8px; }
+#paramsSide #tplFields input { width: 100%; }
+#paramsSide #tplBlock p { margin: 6px 0 0; }
 @media (max-width: 1100px) {
   #paramsSide {
     position: fixed; top: 0; right: 0; bottom: 0; z-index: 80;
@@ -364,6 +365,16 @@ a.btn { text-decoration: none; }
   animation: pop-in .18s ease;
 }
 .load-card { width: 460px; }
+/* collapsed advanced block inside the load dialog */
+.load-card details.adv { border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.load-card details.adv > summary {
+  cursor: pointer; padding: 7px 10px; font-size: 12.5px; color: var(--muted); user-select: none;
+}
+.load-card details.adv > summary:hover { color: var(--text); }
+.load-card details.adv[open] > summary { border-bottom: 1px solid var(--border); }
+.load-card details.adv .adv-body { padding: 10px; display: flex; flex-direction: column; }
+.load-card #ldWarnRow { flex-wrap: nowrap; }
+.load-card #ldWarnRow .warnbox { margin: 0; }
 .fullscreen-note {
   position: fixed; inset: 0; z-index: 300; display: flex; align-items: center;
   justify-content: center; padding: 24px; text-align: center; font-size: 16px;

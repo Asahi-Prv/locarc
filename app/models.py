@@ -11,6 +11,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 import httpx
+import jinja2
+from jinja2.meta import find_undeclared_variables
 
 from . import tasks
 from .config import MODELS_DIR, load_config
@@ -402,30 +404,42 @@ def chat_template_text(d: Path) -> str:
     return ""
 
 
-# Optional kwargs of PFML3-style translation templates (pfnet/plamo-3-translate-*).
-# ``target_lang`` is required by those templates and marks the model as a
-# translation model: a plain chat request fails with "target_lang is required".
-_TRANSLATE_MARKERS = ("source_lang", "context", "form", "glossary")
+# Variables Jinja renders anyway or Transformers provides as globals, plus the
+# one LocArc exposes through its own thinking control. Everything else a chat
+# template references is a parameter the user has to supply as
+# ``chat_template_kwargs`` (e.g. target_lang in translation templates).
+_TEMPLATE_BUILTIN_VARS = {
+    "messages", "tools", "documents", "add_generation_prompt", "bos_token",
+    "eos_token", "padding_side", "raise_exception", "strftime_now", "loop",
+    "namespace", "enable_thinking",  # the sidebar's "suppress thinking" control
+}
+
+_jinja_env = jinja2.Environment()
+_TEMPLATE_MAX_BYTES = 200_000
 
 
-def translation_info(d: Path) -> dict | None:
-    """Translation-template metadata for the chat UI (None for regular chat models).
+def chat_template_vars(d: Path) -> list[str]:
+    """Names of the extra parameters the model's chat template expects.
 
-    ``stop`` holds the extra stop strings the model card recommends so the
-    generated text ends before the next PFML3 tag.
+    The template itself is introspected (``chat_template.jinja``, falling back to
+    ``tokenizer_config.json``), so no model-specific knowledge is needed: PFML3
+    translation templates report ``target_lang`` / ``source_lang`` / ``context`` /
+    ``form`` / ``glossary``, Qwen3-style templates report ``enable_thinking``
+    (which LocArc already controls itself), and plain chat templates report
+    nothing. Values are supplied by the user and forwarded verbatim as
+    ``chat_template_kwargs``.
     """
     if not d.is_dir():
-        return None
+        return []
     text = chat_template_text(d)
-    if not text or not re.search(r"\btarget_lang\b", text):
-        return None
-    plamo = "<|plamo:" in text
-    return {
-        "target_lang": True,
-        **{marker: bool(re.search(rf"\b{marker}\b", text)) for marker in _TRANSLATE_MARKERS},
-        "prompt": "pfml3" if plamo else "generic",
-        "stop": ["<|plamo:tag|>", "<|plamo:bos|>"] if plamo else [],
-    }
+    if not text or len(text) > _TEMPLATE_MAX_BYTES:
+        return []
+    try:
+        names = find_undeclared_variables(_jinja_env.parse(text))
+    except Exception:
+        return []
+    return sorted(name for name in names - _TEMPLATE_BUILTIN_VARS
+                  if name.isidentifier())[:16]
 
 
 def model_size_bytes(name: str) -> int:
