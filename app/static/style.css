@@ -126,6 +126,9 @@ body {
 #paramsSide .pgrid { grid-template-columns: 1fr; gap: 4px; }
 #paramsSide .pgrid label { margin-top: 8px; }
 #paramsSide textarea { width: 100%; resize: vertical; min-height: 88px; }
+#paramsSide select { width: 100%; }
+#paramsSide textarea.trg-area { min-height: 56px; }
+#paramsSide #trgNote { margin: 2px 0 0; }
 @media (max-width: 1100px) {
   #paramsSide {
     position: fixed; top: 0; right: 0; bottom: 0; z-index: 80;

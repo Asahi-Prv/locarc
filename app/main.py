@@ -349,20 +349,21 @@ def api_load_options(model: str):
     meta = modelsvc.read_meta(model_dir)
     quant = modelsvc.quant_info(f"{model} {meta.get('origin', '')}")
     kind = modelsvc.detect_kind(model_dir) if model else "unknown"
-    if kind == "image_generation":
-        # OVMS loads the pipeline but then fails at generation time without the
-        # tokenizer IR, which many community repos do not ship.
+    if kind in ovms.GENAI_TASKS:
+        # OpenVINO GenAI loads the pipeline but then fails at generation time
+        # without the tokenizer IR, which many community repos do not ship.
         candidates = [model_dir / "openvino_tokenizer.xml"]
         try:
             candidates += [sub / "openvino_tokenizer.xml" for sub in model_dir.iterdir() if sub.is_dir()]
         except OSError:
             pass
         if not any(path.is_file() for path in candidates):
-            warnings.append("image_tokenizer_missing")
+            warnings.append("tokenizer_missing")
     return {
         "devices": devices,
         "kind": kind,
         "multimodal": modelsvc.is_multimodal(model_dir) if kind == "text_generation" else False,
+        "translation": modelsvc.translation_info(model_dir) if kind == "text_generation" else None,
         "warnings": warnings,
         "quant": quant["precision"],
         "cw": quant["cw"],

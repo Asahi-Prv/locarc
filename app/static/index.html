@@ -119,10 +119,25 @@
             <div class="pctl"><input id="pMax" type="range" min="16" max="32768" step="16" value="4096"><input id="nMax" class="pnum" type="number" min="16" max="32768" step="16" value="4096"></div>
             <label>repetition_penalty <span id="pvRep">1.0</span></label>
             <div class="pctl"><input id="pRep" type="range" min="1" max="1.5" step="0.01" value="1"><input id="nRep" class="pnum" type="number" min="1" max="1.5" step="0.01" value="1"></div>
-            <label data-i18n="params.system_label">systemプロンプト</label>
+            <label id="pSystemLabel" data-i18n="params.system_label">systemプロンプト</label>
             <textarea id="pSystem" rows="4" data-i18n-placeholder="params.system_placeholder" placeholder="例: あなたは簡潔に答えるアシスタントです"></textarea>
             <label data-i18n="params.thinking_label">思考制御</label>
             <span><input id="pSuppressThink" type="checkbox"> <span data-i18n="params.suppress_thinking">思考を抑制する（Qwen系の長考をオフ。対応モデルのみ有効）</span></span>
+            <label id="trgTargetLabel" class="hidden" data-i18n="params.target_lang">翻訳先言語</label>
+            <select id="pTargetLang" class="hidden"></select>
+            <label id="trgSourceLabel" class="hidden" data-i18n="params.source_lang">原文言語</label>
+            <select id="pSourceLang" class="hidden"></select>
+            <label id="trgFormLabel" class="hidden" data-i18n="params.form_label">文体</label>
+            <select id="pForm" class="hidden">
+              <option value="" data-i18n="params.form_default">既定（モデル任せ）</option>
+              <option value="polite" data-i18n="params.form_polite">敬体（です・ます）</option>
+              <option value="plain" data-i18n="params.form_plain">常体（だ・である）</option>
+            </select>
+            <label id="trgContextLabel" class="hidden" data-i18n="params.context_label">参考文脈</label>
+            <textarea id="pContext" class="hidden trg-area" rows="2" data-i18n-placeholder="params.context_placeholder" placeholder="原文を解釈するための前後の文や場面（任意）"></textarea>
+            <label id="trgGlossaryLabel" class="hidden" data-i18n="params.glossary_label">用語集</label>
+            <textarea id="pGlossary" class="hidden trg-area" rows="2" data-i18n-placeholder="params.glossary_placeholder" placeholder="原語=訳語（1行ずつ・任意）"></textarea>
+            <p id="trgNote" class="muted small hidden" data-i18n="params.translate_note">翻訳モデルでは system プロンプトは使われません（temperature 0 推奨）。</p>
             <label></label>
             <button id="btnParamsReset" class="btn small" data-i18n="params.reset">既定値に戻す</button>
           </div>

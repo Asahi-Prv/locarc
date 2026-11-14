@@ -4,7 +4,8 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
 
 const DEFAULT_PARAMS = { temperature: 0.7, top_p: 0.95, top_k: 40, max_tokens: 4096,
-                         repetition_penalty: 1.0, system_prompt: "", suppress_thinking: false };
+                         repetition_penalty: 1.0, system_prompt: "", suppress_thinking: false,
+                         target_lang: "", source_lang: "", form: "", context: "", glossary: "" };
 
 const state = {
   cfg: {},
@@ -758,7 +759,7 @@ async function refreshDevices() {
 }
 
 function applyLoadWarnings(opts) {
-  const warnText = (opts.warnings || []).includes("image_tokenizer_missing")
+  const warnText = (opts.warnings || []).includes("tokenizer_missing")
     ? t("load.warn_tokenizer") : "";
   $("#ldWarnings").textContent = warnText;
   $("#ldWarnRow").classList.toggle("hidden", !warnText);
@@ -768,7 +769,8 @@ function applyLoadWarnings(opts) {
   const kindKey = opts.kind && opts.kind !== "unknown" ? `load.kind.${opts.kind}` : "";
   hint.classList.toggle("hidden", !kindKey);
   if (kindKey) hint.textContent = t(kindKey)
-    + (opts.kind === "text_generation" && opts.multimodal ? " " + t("load.kind.multimodal") : "");
+    + (opts.kind === "text_generation" && opts.multimodal ? " " + t("load.kind.multimodal") : "")
+    + (opts.kind === "text_generation" && opts.translation ? " " + t("load.kind.translation") : "");
   state._ldQuant = { quant: opts.quant || "", cw: !!opts.cw };
   refreshLlmOptionVisibility();
 }
@@ -896,10 +898,11 @@ async function loadStatus() {
   try { st = await api("/api/server/status"); } catch { return; }
   const sig = JSON.stringify([st.running, st.ready, st.load_state, st.load_error, st.model,
                               st.mode, st.device, st.pid, st.exit_code, st.started_at,
-                              st.multimodal]);
+                              st.multimodal, st.translation]);
   if (sig === state._statusSig) return;  // nothing changed -> no DOM work
   state._statusSig = sig;
   state.status = st;
+  refreshTranslateUI();
   const badge = $("#loadBadge");
   if (st.load_state === "failed") {
     badge.textContent = t("status.failed");
@@ -1896,6 +1899,99 @@ const PARAM_INPUTS = {
   repetition_penalty: ["#pRep", "#pvRep", "#nRep"],
 };
 
+// ------------------------------------------------------------ translation models
+
+// Translation-specialized chat templates (PFML3 in pfnet/plamo-3-translate-*)
+// require target_lang as a template kwarg — without it OVMS answers
+// "target_lang is required". The backend flags such models in the server status
+// (/api/server/status -> translation) and the sidebar exposes the kwargs.
+const TRANSLATION_LANGS = [
+  ["ja", "Japanese", "日本語"], ["en", "English", "英語"],
+  ["zh-hans", "Chinese (Simplified)", "中国語（簡体字）"],
+  ["zh-hant", "Chinese (Traditional)", "中国語（繁体字）"],
+  ["ko", "Korean", "韓国語"], ["ar", "Arabic", "アラビア語"],
+  ["az", "Azerbaijani", "アゼルバイジャン語"], ["be", "Belarusian", "ベラルーシ語"],
+  ["bg", "Bulgarian", "ブルガリア語"], ["bn", "Bengali", "ベンガル語"],
+  ["ca", "Catalan", "カタルーニャ語"], ["ceb", "Cebuano", "セブアノ語"],
+  ["de", "German", "ドイツ語"], ["es", "Spanish", "スペイン語"],
+  ["et", "Estonian", "エストニア語"], ["eu", "Basque", "バスク語"],
+  ["fa", "Persian", "ペルシャ語"], ["fr", "French", "フランス語"],
+  ["gu", "Gujarati", "グジャラート語"], ["he", "Hebrew", "ヘブライ語"],
+  ["hi", "Hindi", "ヒンディー語"], ["hr", "Croatian", "クロアチア語"],
+  ["hu", "Hungarian", "ハンガリー語"], ["hy", "Armenian", "アルメニア語"],
+  ["id", "Indonesian", "インドネシア語"], ["it", "Italian", "イタリア語"],
+  ["jv", "Javanese", "ジャワ語"], ["ka", "Georgian", "ジョージア語"],
+  ["kk", "Kazakh", "カザフ語"], ["km", "Khmer", "クメール語"],
+  ["lt", "Lithuanian", "リトアニア語"], ["lv", "Latvian", "ラトビア語"],
+  ["ml", "Malayalam", "マラヤーラム語"], ["mr", "Marathi", "マラーティー語"],
+  ["ms", "Malay", "マレー語"], ["my", "Myanmar", "ミャンマー語"],
+  ["ne", "Nepali", "ネパール語"], ["nl", "Dutch", "オランダ語"],
+  ["pa", "Punjabi", "パンジャーブ語"], ["pl", "Polish", "ポーランド語"],
+  ["ru", "Russian", "ロシア語"], ["si", "Sinhala", "シンハラ語"],
+  ["sk", "Slovak", "スロバキア語"], ["sl", "Slovenian", "スロベニア語"],
+  ["sr", "Serbian", "セルビア語"], ["sw", "Swahili", "スワヒリ語"],
+  ["ta", "Tamil", "タミル語"], ["te", "Telugu", "テルグ語"],
+  ["th", "Thai", "タイ語"], ["tl", "Tagalog", "タガログ語"],
+  ["ur", "Urdu", "ウルドゥー語"], ["uz", "Uzbek", "ウズベク語"],
+  ["vi", "Vietnamese", "ベトナム語"],
+];
+
+function translationActive() {
+  const st = state.status;
+  return !!(st.running && st.mode === "text_generation" && st.translation);
+}
+
+function langLabel(l) { return `${LANG === "ja" ? l[2] : l[1]} (${l[0]})`; }
+
+function fillLangSelects() {
+  const target = $("#pTargetLang");
+  if (!target || target.options.length) return;  // built once per page load
+  target.innerHTML = TRANSLATION_LANGS.map(l => `<option value="${l[0]}">${esc(langLabel(l))}</option>`).join("");
+  const source = $("#pSourceLang");
+  source.innerHTML = `<option value="">${esc(t("params.source_auto"))}</option>`
+    + TRANSLATION_LANGS.map(l => `<option value="${l[0]}">${esc(langLabel(l))}</option>`).join("");
+}
+
+// "source=translation" per line -> [{source, target}] (first "=" splits the pair)
+function parseGlossary(text) {
+  const out = [];
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const parts = line.split("=");
+    if (parts.length < 2) continue;
+    const source = parts.shift().trim();
+    const target = parts.join("=").trim();
+    if (!source || !target) continue;
+    out.push({ source: source.slice(0, 200), target: target.slice(0, 200) });
+    if (out.length >= 100) break;
+  }
+  return out;
+}
+
+function defaultTargetLang() {
+  const ui = LANG === "ja" ? "ja" : "en";
+  return TRANSLATION_LANGS.some(l => l[0] === ui) ? ui : "en";
+}
+
+// Show/hide the translation block for the loaded model; "form" only applies to
+// Japanese targets and the system prompt is dropped by those templates.
+function refreshTranslateUI() {
+  const tr = translationActive() ? state.status.translation : null;
+  const show = (sel, on) => { const el = $(sel); if (el) el.classList.toggle("hidden", !on); };
+  show("#trgTargetLabel", !!tr); show("#pTargetLang", !!tr);
+  show("#trgSourceLabel", !!tr && !!tr.source_lang); show("#pSourceLang", !!tr && !!tr.source_lang);
+  const form = !!tr && !!tr.form && ($("#pTargetLang")?.value || "") === "ja";
+  show("#trgFormLabel", form); show("#pForm", form);
+  show("#trgContextLabel", !!tr && !!tr.context); show("#pContext", !!tr && !!tr.context);
+  show("#trgGlossaryLabel", !!tr && !!tr.glossary); show("#pGlossary", !!tr && !!tr.glossary);
+  show("#trgNote", !!tr);
+  const sys = $("#pSystem");
+  if (sys) sys.disabled = !!tr;
+  const sysLabel = $("#pSystemLabel");
+  if (sysLabel) {
+    sysLabel.textContent = t("params.system_label") + (tr ? ` — ${t("params.system_ignored")}` : "");
+  }
+}
+
 function currentParams() {
   return {
     temperature: Number($("#pTemp").value),
@@ -1905,6 +2001,11 @@ function currentParams() {
     repetition_penalty: Number($("#pRep").value),
     system_prompt: $("#pSystem").value.trim(),
     suppress_thinking: $("#pSuppressThink").checked,
+    target_lang: $("#pTargetLang")?.value || "",
+    source_lang: $("#pSourceLang")?.value || "",
+    form: $("#pForm")?.value || "",
+    context: $("#pContext")?.value.trim() || "",
+    glossary: $("#pGlossary")?.value.trim() || "",
   };
 }
 
@@ -1917,6 +2018,15 @@ function applyParamsToUI(p) {
   }
   $("#pSystem").value = merged.system_prompt || "";
   $("#pSuppressThink").checked = !!merged.suppress_thinking;
+  fillLangSelects();
+  $("#pTargetLang").value = merged.target_lang || "";
+  $("#pSourceLang").value = merged.source_lang || "";
+  $("#pForm").value = merged.form || "";
+  $("#pContext").value = merged.context || "";
+  $("#pGlossary").value = merged.glossary || "";
+  // target_lang is required by translation templates: prefill the UI language
+  if (!merged.target_lang && translationActive()) $("#pTargetLang").value = defaultTargetLang();
+  refreshTranslateUI();
 }
 
 function setParamsSaveState(msg) {
@@ -1970,6 +2080,12 @@ for (const [k, [inp, lab, num]] of Object.entries(PARAM_INPUTS)) {
 }
 $("#pSystem")?.addEventListener("input", scheduleParamsAutosave);
 $("#pSuppressThink")?.addEventListener("change", scheduleParamsAutosave);
+for (const sel of ["#pTargetLang", "#pSourceLang", "#pForm"]) {
+  $(sel)?.addEventListener("change", () => { refreshTranslateUI(); scheduleParamsAutosave(); });
+}
+for (const sel of ["#pContext", "#pGlossary"]) {
+  $(sel)?.addEventListener("input", scheduleParamsAutosave);
+}
 $("#btnParams").addEventListener("click", () => {
   const collapsed = $("#view-chat").classList.toggle("params-collapsed");
   localStorage.setItem("paramsCollapsed", collapsed ? "1" : "0");
@@ -2037,6 +2153,11 @@ async function sendChat() {
   // a non-VLM model was loaded after the images were attached -> block here
   if (pending.some(a => a.kind === "image") && !imagesAllowed()) {
     toast(t("chat.attach_image_blocked"), true);
+    return;
+  }
+  // translation templates refuse to render without a target language
+  if (translationActive() && !$("#pTargetLang")?.value) {
+    toast(t("chat.translation_no_target"), true);
     return;
   }
   input.value = "";
@@ -2161,7 +2282,10 @@ async function streamAssistantReply(chat) {
   syncComposer();
   saveChat(chat);  // persist the prompt immediately, not only when the reply lands
 
-  const reqMessages = buildApiMessages(chat.messages, chat.params.system_prompt);
+  const tr = translationActive() ? state.status.translation : null;
+  // PFML3-style translation templates reject system messages and take the
+  // translation options as chat_template_kwargs, so the system prompt is dropped.
+  const reqMessages = buildApiMessages(chat.messages, tr ? "" : chat.params.system_prompt);
   const body = {
     model: st.model,
     messages: reqMessages,
@@ -2172,7 +2296,18 @@ async function streamAssistantReply(chat) {
   };
   if (chat.params.top_k > 0) body.top_k = chat.params.top_k;
   if (chat.params.repetition_penalty !== 1.0) body.repetition_penalty = chat.params.repetition_penalty;
-  if (chat.params.suppress_thinking) body.chat_template_kwargs = { enable_thinking: false };
+  const templateKw = {};
+  if (chat.params.suppress_thinking) templateKw.enable_thinking = false;
+  if (tr) {
+    if (chat.params.target_lang) templateKw.target_lang = chat.params.target_lang;
+    if (tr.source_lang && chat.params.source_lang) templateKw.source_lang = chat.params.source_lang;
+    if (tr.form && chat.params.target_lang === "ja" && chat.params.form) templateKw.form = chat.params.form;
+    if (tr.context && chat.params.context) templateKw.context = chat.params.context;
+    const glossary = tr.glossary ? parseGlossary(chat.params.glossary) : [];
+    if (glossary.length) templateKw.glossary = glossary;
+    if ((tr.stop || []).length) body.stop = tr.stop;  // ends at <|plamo:tag|> etc.
+  }
+  if (Object.keys(templateKw).length) body.chat_template_kwargs = templateKw;
 
   let finishReason = "";
   let aborted = false;
@@ -2303,6 +2438,7 @@ function cancelPendingTitle() {
 
 async function generateChatTitle(chat, force = false) {
   if (!chat || (!chat._autoTitle && !force)) return false;
+  if (translationActive()) return false;  // translation templates reject title-style chats
   if (state.sending) return false;  // never compete with an in-flight reply for the model
   if (state._titleAbort) return false;  // one title request at a time
   const st = state.status;

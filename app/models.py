@@ -353,21 +353,79 @@ def _vlm_architectures(d: Path) -> bool:
     return False
 
 
+def _model_dirs(d: Path) -> list[Path]:
+    """The model folder plus one level down (zip / export layouts), hidden dirs skipped."""
+    dirs = [d]
+    try:
+        dirs += [p for p in d.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    except OSError:
+        pass
+    return dirs
+
+
 def is_multimodal(d: Path) -> bool:
     """True when a text-generation model accepts image input (VLM pipeline).
 
     Probes the model folder (top level plus one level down, like detect_kind)
     for an image-processor config or a VLM architecture in config.json.
     """
+    return d.is_dir() and any(
+        (sub / "preprocessor_config.json").is_file() or _vlm_architectures(sub)
+        for sub in _model_dirs(d))
+
+
+def chat_template_text(d: Path) -> str:
+    """The chat template OVMS would use: chat_template.jinja first, then tokenizer_config.json.
+
+    (OVMS loads ``chat_template.jinja`` with priority over the ``chat_template``
+    field, so the same order is used here.)
+    """
+    for sub in _model_dirs(d):
+        template_file = sub / "chat_template.jinja"
+        if template_file.is_file():
+            try:
+                return template_file.read_text(encoding="utf-8")
+            except OSError:
+                return ""
+    for sub in _model_dirs(d):
+        try:
+            cfg = json.loads((sub / "tokenizer_config.json").read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        tmpl = cfg.get("chat_template")
+        if isinstance(tmpl, str) and tmpl.strip():
+            return tmpl
+        for item in tmpl if isinstance(tmpl, list) else []:  # named-template list
+            text = item.get("template") if isinstance(item, dict) else item
+            if isinstance(text, str) and text.strip():
+                return text
+    return ""
+
+
+# Optional kwargs of PFML3-style translation templates (pfnet/plamo-3-translate-*).
+# ``target_lang`` is required by those templates and marks the model as a
+# translation model: a plain chat request fails with "target_lang is required".
+_TRANSLATE_MARKERS = ("source_lang", "context", "form", "glossary")
+
+
+def translation_info(d: Path) -> dict | None:
+    """Translation-template metadata for the chat UI (None for regular chat models).
+
+    ``stop`` holds the extra stop strings the model card recommends so the
+    generated text ends before the next PFML3 tag.
+    """
     if not d.is_dir():
-        return False
-    dirs = [d]
-    try:
-        dirs += [p for p in d.iterdir() if p.is_dir() and not p.name.startswith(".")]
-    except OSError:
-        pass
-    return any((sub / "preprocessor_config.json").is_file() or _vlm_architectures(sub)
-               for sub in dirs)
+        return None
+    text = chat_template_text(d)
+    if not text or not re.search(r"\btarget_lang\b", text):
+        return None
+    plamo = "<|plamo:" in text
+    return {
+        "target_lang": True,
+        **{marker: bool(re.search(rf"\b{marker}\b", text)) for marker in _TRANSLATE_MARKERS},
+        "prompt": "pfml3" if plamo else "generic",
+        "stop": ["<|plamo:tag|>", "<|plamo:bos|>"] if plamo else [],
+    }
 
 
 def model_size_bytes(name: str) -> int:

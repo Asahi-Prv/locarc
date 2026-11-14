@@ -53,6 +53,19 @@ def test_chats_use_request_language():
     assert client.post("/api/chats", headers={"Accept-Language": "en"}).json()["title"] == "New chat"
 
 
+def test_chat_translation_params_roundtrip():
+    reset_config()
+    cid = client.post("/api/chats").json()["id"]
+    assert client.get(f"/api/chats/{cid}").json()["params"]["target_lang"] == ""
+    chat = client.put(f"/api/chats/{cid}", json={"params": {
+        "target_lang": "ja", "source_lang": "en", "form": "polite",
+        "context": "help page of a tool", "glossary": "dashboard=管理画面",
+    }}).json()
+    p = chat["params"]
+    assert p["target_lang"] == "ja" and p["source_lang"] == "en" and p["form"] == "polite"
+    assert p["context"] == "help page of a tool" and p["glossary"] == "dashboard=管理画面"
+
+
 def test_chats_keep_think_and_stats():
     reset_config()
     cid = client.post("/api/chats").json()["id"]
@@ -137,18 +150,81 @@ def test_path_traversal_is_rejected():
     assert client.delete("/api/models/..%5Cconfig.json").status_code == 404
 
 
-def test_load_options_warns_missing_image_tokenizer():
+def test_load_options_warns_missing_tokenizer():
     reset_config()
+    import shutil
+
     from app.config import MODELS_DIR
     model = MODELS_DIR / "imgmodel"
     model.mkdir(parents=True, exist_ok=True)
     (model / "model_index.json").write_text("{}", encoding="utf-8")
     r = client.get("/api/model/load_options?model=imgmodel")
     assert r.json()["kind"] == "image_generation"
-    assert "image_tokenizer_missing" in r.json()["warnings"]
+    assert "tokenizer_missing" in r.json()["warnings"]
     (model / "openvino_tokenizer.xml").write_text("<net/>", encoding="utf-8")
     r = client.get("/api/model/load_options?model=imgmodel")
     assert r.json()["warnings"] == []
+
+    # every GenAI kind needs the tokenizer IR, not only image generation
+    llm = MODELS_DIR / "llm-no-tokenizer-ov"
+    llm.mkdir(parents=True, exist_ok=True)
+    (llm / "generation_config.json").write_text("{}", encoding="utf-8")
+    r = client.get("/api/model/load_options?model=llm-no-tokenizer-ov")
+    assert r.json()["kind"] == "text_generation"
+    assert "tokenizer_missing" in r.json()["warnings"]
+
+    # classic models run without a tokenizer
+    cl = MODELS_DIR / "classic-ov"
+    cl.mkdir(parents=True, exist_ok=True)
+    (cl / "model.xml").write_text("<net/>", encoding="utf-8")
+    r = client.get("/api/model/load_options?model=classic-ov")
+    assert r.json()["kind"] == "classic"
+    assert r.json()["warnings"] == []
+
+    shutil.rmtree(model, ignore_errors=True)
+    shutil.rmtree(llm, ignore_errors=True)
+    shutil.rmtree(cl, ignore_errors=True)
+    reset_config()
+
+
+def test_load_options_detects_translation_template():
+    reset_config()
+    import json
+    import shutil
+
+    from app.config import MODELS_DIR
+    model = MODELS_DIR / "translate-test-ov"
+    model.mkdir(parents=True, exist_ok=True)
+    (model / "openvino_tokenizer.xml").write_text("<net/>", encoding="utf-8")
+    (model / "generation_config.json").write_text("{}", encoding="utf-8")
+    # PFML3-style template (pfnet/plamo-3-translate-*): target_lang is required
+    (model / "chat_template.jinja").write_text(
+        "{{ bos_token }}<|plamo:tag|>dataset<|plamo:msg|>translation"
+        "{% if target_lang is not defined %}target_lang is required{% endif %}",
+        encoding="utf-8")
+    r = client.get("/api/model/load_options?model=translate-test-ov").json()
+    assert r["kind"] == "text_generation"
+    assert r["translation"]["target_lang"] is True
+    assert r["translation"]["prompt"] == "pfml3"
+    assert r["translation"]["stop"] == ["<|plamo:tag|>", "<|plamo:bos|>"]
+
+    # tokenizer_config.json's chat_template is used when no .jinja file exists,
+    # and the optional kwargs are detected from the template source
+    (model / "chat_template.jinja").unlink()
+    (model / "tokenizer_config.json").write_text(
+        json.dumps({"chat_template": "{{ target_lang }} {{ context }} {{ form }}"}),
+        encoding="utf-8")
+    tr = client.get("/api/model/load_options?model=translate-test-ov").json()["translation"]
+    assert tr["context"] is True and tr["form"] is True
+    assert tr["source_lang"] is False and tr["glossary"] is False
+    assert tr["prompt"] == "generic" and tr["stop"] == []
+
+    # a regular chat template is not a translation model
+    (model / "tokenizer_config.json").write_text(
+        json.dumps({"chat_template": "{{ messages }}"}), encoding="utf-8")
+    assert client.get("/api/model/load_options?model=translate-test-ov").json()["translation"] is None
+
+    shutil.rmtree(model, ignore_errors=True)
     reset_config()
 
 
