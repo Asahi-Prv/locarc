@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-11-15
+
+### Changed
+
+- Chat template parameters are fully generic now: instead of the built-in translation preset
+  (fixed language list, style values, stop tokens, system-prompt handling), the app introspects
+  the model's own chat template (Jinja) and shows an input for every extra parameter it
+  references — e.g. `target_lang`, `source_lang`, `context`, `form`, `glossary` for PFML3
+  translation templates, or any other name a template may use. Values are sent as
+  `chat_template_kwargs`; text that parses as JSON (`true`/`false`, numbers, `[...]`, `{...}`) is
+  sent as that JSON value. No model-specific names, lists or values remain in the app, so every
+  template with extra parameters works the same way (see *Chat template parameters* in the
+  README).
+
 ## [2.5.0] - 2026-11-14
 
 ### Added
