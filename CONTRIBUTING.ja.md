@@ -102,11 +102,12 @@ Windows / Linux 実行ファイルのビルドも行われます。
 2. `CHANGELOG.md` を更新し、該当する `[Unreleased]` の項目を新しいバージョンのセクションへ
    移します。
 3. `app/version.py` を更新します（リリースビルドではタグから上書きされます）。
-4. タグを作成してpushします:
+4. タグを作成してpushします（バージョンは[カレンダーバージョニング](https://calver.org/)
+   `YY.MM.MICRO`、例: `26.11.0` = 2026年11月）:
 
    ```bash
-   git tag v1.2.3
-   git push origin v1.2.3
+   git tag v26.11.0
+   git push origin v26.11.0
    ```
 
 *Build apps* ワークフローが以下を自動実行します:

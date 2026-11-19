@@ -102,11 +102,12 @@ Rules:
    section.
 3. Bump `app/version.py` so local builds report the new version (release builds overwrite it
    from the tag anyway).
-4. Tag and push:
+4. Tag and push (versions follow [calendar versioning](https://calver.org/), `YY.MM.MICRO`,
+   e.g. `26.11.0` = November 2026):
 
    ```bash
-   git tag v1.2.3
-   git push origin v1.2.3
+   git tag v26.11.0
+   git push origin v26.11.0
    ```
 
 The *Build apps* workflow then:
