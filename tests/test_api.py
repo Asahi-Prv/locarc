@@ -37,6 +37,15 @@ def test_config_defaults_and_port_validation():
     assert "65535" in r.json()["detail"]
 
 
+def test_npu_graph_cache_default_and_toggle():
+    reset_config()
+    # default on: the UI checkbox uses "!== false" semantics
+    assert client.get("/api/config").json()["npu_graph_cache"] is True
+    r = client.post("/api/config", json={"npu_graph_cache": False})
+    assert r.json()["npu_graph_cache"] is False
+    assert load_config()["npu_graph_cache"] is False
+
+
 def test_errors_are_localized():
     r = client.get("/api/ovms/versions?channel=bogus", headers={"Accept-Language": "en"})
     assert r.status_code == 400 and "stable" in r.json()["detail"]

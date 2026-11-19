@@ -249,6 +249,8 @@
         <div class="row"><label class="lbl" data-i18n="settings.rest_port">RESTポート</label><input id="cfgRest" type="number" style="width:90px"></div>
         <div class="row"><label class="lbl" data-i18n="settings.grpc_port">gRPCポート</label><input id="cfgGrpc" type="number" style="width:90px"></div>
         <div class="row"><label class="lbl" data-i18n="settings.bind_address">バインドアドレス</label><input id="cfgBind" class="fill"></div>
+        <div class="row"><label><input id="cfgNpuCache" type="checkbox" checked> <span data-i18n="settings.npu_cache">NPUグラフをキャッシュする（ロード高速化）</span></label></div>
+        <p class="muted" data-i18n-html="settings.npu_cache_note">NPUでのロード時にOVMSへ <code>--cache_dir</code> を渡し、コンパイル済みグラフを <code>data/ov_cache</code> に保存します。初回ロード、NPUドライバ更新後、ロード設定変更後は再コンパイルされます。</p>
         <div class="row"><label class="lbl" data-i18n="settings.extra_args">追加引数</label><input id="cfgExtra" class="fill" data-i18n-placeholder="settings.extra_args_placeholder" placeholder="例: --log_level DEBUG"></div>
         <p class="muted" data-i18n="settings.advanced_note">デバイス・コンテキスト長等はロード時ダイアログで指定します（ロード後は変更不可）。</p>
         <hr class="sep">

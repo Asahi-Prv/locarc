@@ -74,6 +74,7 @@ DEFAULTS = {
     "selected_model": None,        # dirname under data/models
     "hf_token": "",
     "ovms_api_key": "",            # Bearer key required by OVMS itself (API_KEY env)
+    "npu_graph_cache": True,       # pass --cache_dir on NPU loads (compiled-graph cache)
     "stats_enabled": True,         # record local usage statistics (never sent anywhere)
     # self-update (packaged builds only); cached release info lives in config.json
     "update_check_enabled": True,

@@ -488,6 +488,7 @@ def api_load(body: dict, request: Request):
             extra_args=str(cfg.get("extra_args") or ""),
             api_key=str(cfg.get("ovms_api_key") or ""),
             llm_options=llm_options,
+            npu_cache=bool(cfg.get("npu_graph_cache", True)),
             lang=lang,
         )
     except Exception as e:

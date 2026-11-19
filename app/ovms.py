@@ -26,7 +26,7 @@ from urllib.parse import quote
 import httpx
 
 from . import tasks
-from .config import MODELS_DIR, RUNTIMES_DIR
+from .config import DATA_DIR, MODELS_DIR, RUNTIMES_DIR
 from .fsutil import extract_zip_safe as _extract_zip_safe
 from .fsutil import rmtree as _rmtree
 from .fsutil import tar_safe_filter
@@ -38,6 +38,7 @@ WEEKLY_BASE = "https://storage.openvinotoolkit.org/repositories/openvino_model_s
 FILETREE_URL = "https://storage.openvinotoolkit.org/filetree.json"
 
 IS_WINDOWS = os.name == "nt"
+OV_CACHE_DIR = DATA_DIR / "ov_cache"   # compiled-graph cache (--cache_dir), NPU loads
 ASSET_RE = re.compile(r"^ovms_(windows|ubuntu24|ubuntu22|redhat)_([0-9][\w.]*)_python_on\.(zip|tar\.gz)$")
 # Weekly builds switched to unified packages with 2026.5.0.eec7daac4 (October 2026): Python
 # is an optional dependency detected at runtime, so the python_on/python_off split is gone
@@ -640,7 +641,7 @@ class OVMServer:
     def start(self, *, runtime_id: str, model: str, mode: str, device: str,
               rest_port: int, grpc_port: int, bind_address: str, extra_args: str,
               api_key: str = "", llm_options: dict | None = None,
-              lang: str | None = None) -> dict:
+              npu_cache: bool = True, lang: str | None = None) -> dict:
         with self._lock:
             if self.proc is not None and self.proc.poll() is None:
                 raise RuntimeError(tr(lang, "err.already_running"))
@@ -688,6 +689,17 @@ class OVMServer:
             pairs += [("--rest_port", str(rest_port)), (grpc_flag, str(grpc_port)),
                       ("--rest_bind_address", bind_address), ("--grpc_bind_address", bind_address),
                       ("--target_device", device), ("--log_level", "INFO")]
+            if npu_cache and "NPU" in device.upper():
+                # NPU model import recompiles the graph on every start, which
+                # dominates load time; --cache_dir persists the compiled blob so
+                # later loads become a fast import (recompile happens once per
+                # driver update / load-option change). Builds without the flag
+                # are dropped by the supported-flags filter below.
+                try:
+                    OV_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                    pairs.append(("--cache_dir", str(OV_CACHE_DIR)))
+                except OSError:
+                    pass
 
             self.logs.clear()
             cmd = [str(exe)]
@@ -696,6 +708,8 @@ class OVMServer:
                     cmd += [flag, value]
                 else:
                     self.logs.append(f"[info] {tr(lang, 'log.flag_unsupported', flag=flag)}")
+            if "--cache_dir" in cmd:
+                self.logs.append(f"[info] {tr(lang, 'log.npu_cache', path=str(OV_CACHE_DIR))}")
             extra = (extra_args or "").strip()
             if extra:
                 cmd += shlex.split(extra, posix=not IS_WINDOWS)
