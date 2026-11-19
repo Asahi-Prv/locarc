@@ -232,8 +232,8 @@ const I18N = {
 
     "settings.update_title": "Updates",
     "settings.update_auto": "Check for updates on startup",
-    "settings.npu_cache": "Cache NPU graphs (faster loads)",
-    "settings.npu_cache_note": "On NPU loads, passes <code>--cache_dir</code> to OVMS so compiled graphs persist in <code>data/ov_cache</code>. The first load — and the first load after an NPU driver update or a load-option change — recompiles.",
+    "settings.graph_cache": "Cache compiled models (faster loads)",
+    "settings.graph_cache_note": "Passes <code>--cache_dir</code> to OVMS on every load so compiled models persist in <code>data/ov_cache</code>, one blob per device and model. Helps most on NPU/GPU. The first load — and the first load after a driver update or a load-option change — recompiles.",
     "settings.update_check": "Check for updates",
     "settings.update_checking": "Checking...",
     "settings.update_available": "Version v{v} is available",
@@ -566,8 +566,8 @@ const I18N = {
 
     "settings.update_title": "アップデート",
     "settings.update_auto": "起動時に更新を確認する",
-    "settings.npu_cache": "NPUグラフをキャッシュする（ロード高速化）",
-    "settings.npu_cache_note": "NPUでのロード時にOVMSへ <code>--cache_dir</code> を渡し、コンパイル済みグラフを <code>data/ov_cache</code> に保存します。初回ロード、NPUドライバ更新後、ロード設定変更後は再コンパイルされます。",
+    "settings.graph_cache": "コンパイル済みモデルをキャッシュする（ロード高速化）",
+    "settings.graph_cache_note": "OVMSへ <code>--cache_dir</code> を渡し、コンパイル済みモデルを <code>data/ov_cache</code> にデバイス・モデル別に保存します。特にNPU/GPUで効果的。初回ロード、ドライバ更新後、ロード設定変更後は再コンパイルされます。",
     "settings.update_check": "更新を確認",
     "settings.update_checking": "確認中...",
     "settings.update_available": "新しいバージョン v{v} があります",

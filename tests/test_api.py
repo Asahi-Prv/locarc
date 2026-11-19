@@ -37,13 +37,16 @@ def test_config_defaults_and_port_validation():
     assert "65535" in r.json()["detail"]
 
 
-def test_npu_graph_cache_default_and_toggle():
+def test_graph_cache_default_toggle_and_migration():
     reset_config()
     # default on: the UI checkbox uses "!== false" semantics
-    assert client.get("/api/config").json()["npu_graph_cache"] is True
-    r = client.post("/api/config", json={"npu_graph_cache": False})
-    assert r.json()["npu_graph_cache"] is False
-    assert load_config()["npu_graph_cache"] is False
+    assert client.get("/api/config").json()["graph_cache"] is True
+    r = client.post("/api/config", json={"graph_cache": False})
+    assert r.json()["graph_cache"] is False
+    assert load_config()["graph_cache"] is False
+    # v2.6 wrote the NPU-only key; it migrates on read
+    CONFIG_PATH.write_text('{"npu_graph_cache": false}', encoding="utf-8")
+    assert load_config()["graph_cache"] is False
 
 
 def test_errors_are_localized():

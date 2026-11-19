@@ -171,7 +171,7 @@ async function loadConfig() {
   $("#updCurrent").textContent = state.cfg.app_version || "-";
   $("#chkUpdateCheck").checked = state.cfg.update_check_enabled !== false;
   $("#chkStatsEnabled").checked = state.cfg.stats_enabled !== false;
-  $("#cfgNpuCache").checked = state.cfg.npu_graph_cache !== false;
+  $("#cfgGraphCache").checked = state.cfg.graph_cache !== false;
   $("#cfgDataDir").textContent = state.cfg.data_dir || "-";
   $("#cfgModelsDir").textContent = state.cfg.models_dir || "-";
 }
@@ -191,7 +191,7 @@ $("#btnCfgSave").addEventListener("click", async () => {
     rest_port: Number($("#cfgRest").value) || 8000,
     grpc_port: Number($("#cfgGrpc").value) || 9000,
     extra_args: $("#cfgExtra").value,
-    npu_graph_cache: $("#cfgNpuCache").checked,
+    graph_cache: $("#cfgGraphCache").checked,
   };
   // secrets: send only when changed (or explicitly cleared)
   const tok = $("#cfgToken"), key = $("#cfgOvmsKey");

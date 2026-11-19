@@ -74,7 +74,7 @@ DEFAULTS = {
     "selected_model": None,        # dirname under data/models
     "hf_token": "",
     "ovms_api_key": "",            # Bearer key required by OVMS itself (API_KEY env)
-    "npu_graph_cache": True,       # pass --cache_dir on NPU loads (compiled-graph cache)
+    "graph_cache": True,           # pass --cache_dir on loads (compiled-model cache)
     "stats_enabled": True,         # record local usage statistics (never sent anywhere)
     # self-update (packaged builds only); cached release info lives in config.json
     "update_check_enabled": True,
@@ -115,7 +115,10 @@ def load_config() -> dict:
     cfg = dict(DEFAULTS)
     if stamp is not None:
         try:
-            cfg.update(json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig")))  # tolerate BOM
+            raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))  # tolerate BOM
+            if "graph_cache" not in raw and "npu_graph_cache" in raw:
+                raw["graph_cache"] = raw["npu_graph_cache"]  # v2.6 wrote an NPU-only key
+            cfg.update(raw)
         except Exception:
             pass
     with _config_lock:

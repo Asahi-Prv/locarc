@@ -89,7 +89,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         # runtime log lines
         "log.flag_unsupported": "Skipping {flag}: not supported by this build",
         "log.api_key_enabled": "API_KEY auth enabled (external clients need a Bearer key)",
-        "log.npu_cache": "NPU graph cache enabled: {path}",
+        "log.graph_cache": "Compiled-model cache enabled: {path}",
     },
     "ja": {
         # generic
@@ -168,7 +168,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         # runtime log lines
         "log.flag_unsupported": "このビルドは {flag} をサポートしていないため省略します",
         "log.api_key_enabled": "API_KEY 認証を有効化しました（外部利用には Bearer キーが必要）",
-        "log.npu_cache": "NPUグラフキャッシュ有効: {path}",
+        "log.graph_cache": "コンパイル済みモデルキャッシュ有効: {path}",
     },
 }
 

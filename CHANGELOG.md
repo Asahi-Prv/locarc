@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-11-19
+
+### Changed
+
+- The compiled-model cache now applies to every device instead of NPU only: every load passes
+  `--cache_dir` to OVMS, so GPU and CPU models are cached in `data/ov_cache` too and reloads import
+  the cached blob instead of recompiling (the win is biggest on NPU, still noticeable on GPU). The
+  Settings checkbox was renamed to "Cache compiled models" and the v2.6 NPU-only setting migrates
+  automatically.
+
 ## [2.6.0] - 2026-11-19
 
 ### Added

@@ -31,7 +31,7 @@ It manages the whole lifecycle in a native WebView2 window:
   an NPU tip (or a warning for non-CW models) when NPU is selected.
 - **Load / unload models** – device selection (CPU/GPU/NPU/AUTO), serve-mode auto-detection,
   and LLM load options such as KV-cache size, KV precision (u8), context length, and prefix caching.
-  Compiled NPU graphs are cached by default so reloads are faster (can be turned off in Settings).
+  Compiled models are cached by default so reloads are faster (can be turned off in Settings).
   The dialog shows the detected model kind and, for a first load, starts from this PC's
   recommended values.
 - **Chat** – streaming chat with Markdown rendering, thinking-content support, auto-generated
@@ -257,7 +257,7 @@ All state lives in one data directory:
 | `load_presets.json` | Per-model load options |
 | `models/` | Downloaded models, one folder per model |
 | `runtimes/` | Installed OVMS runtimes |
-| `ov_cache/` | Compiled NPU graph cache (can be turned off in Settings) |
+| `ov_cache/` | Compiled model cache for NPU/GPU etc. (can be turned off in Settings) |
 | `chats/` | Chat histories (JSON) |
 | `app.log` | Log file for windowed builds |
 
