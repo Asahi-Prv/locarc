@@ -33,6 +33,7 @@ const state = {
   _titleAbort: null,        // AbortController while a title is being generated
   _tokenizerTask: null,     // running tokenizer conversion {id, model}
   _ldQuant: null,           // quant/cw of the model in the load dialog {quant, cw}
+  _ldStep: 1,               // load dialog wizard step (1 = basics, 2 = LLM tuning)
   _hfStarting: new Set(),   // repos whose download POST is in flight
   _pendSig: "",             // last rendered set of pending download repos
 };
@@ -700,14 +701,9 @@ const LOAD_FIELDS = ["max_prompt_len", "cache_size", "max_num_seqs", "max_num_ba
 const LOAD_INPUTS = { max_prompt_len: "#ldMaxLen", cache_size: "#ldCache", max_num_seqs: "#ldSeqs", max_num_batched_tokens: "#ldMBT" };
 
 function refreshLlmOptionVisibility() {
-  // LLM load options apply to text_generation only
-  const m = $("#ldMode").value;
-  $("#ldLlm").classList.toggle("hidden", !(m === "text_generation" || m === "auto"));
   // max_prompt_len is NPU-only (CPU/GPU plugins reject it)
   const npu = $("#ldDevice").value === "NPU";
-  $("#ldMaxLenRow").classList.toggle("hidden", !npu);
-  // The NPU-only field lives in the collapsed advanced section; open it for NPU.
-  if (npu) $("#ldAdvanced").open = true;
+  $("#ldMaxLenFld").classList.toggle("hidden", !npu);
   // The NPU prefers channel-wise quantized weights; show the tip on NPU.
   const q = state._ldQuant || {};
   const nonCw = npu && !!q.quant && !q.cw;
@@ -719,7 +715,34 @@ function refreshLlmOptionVisibility() {
       ? t("load.npu_cw_warn", { precision: String(q.quant).toUpperCase() })
       : t("load.npu_cw_tip");
   }
+  renderLdChrome();
 }
+
+// Load dialog wizard: step 1 = basics, step 2 = LLM tuning (LLM/auto modes only).
+function ldHasAdvanced() {
+  const m = $("#ldMode").value;
+  return m === "text_generation" || m === "auto";
+}
+
+function renderLdChrome() {
+  const adv = ldHasAdvanced();
+  if (!adv && state._ldStep !== 1) state._ldStep = 1;  // mode without LLM options
+  const s = state._ldStep;
+  $("#ldStep1").classList.toggle("hidden", s !== 1);
+  $("#ldStep2").classList.toggle("hidden", !(adv && s === 2));
+  $("#ldBack").classList.toggle("hidden", s === 1);
+  $("#ldNext").classList.toggle("hidden", !(adv && s === 1));
+  $("#ldOk").classList.toggle("hidden", adv && s === 1);
+  const st = $("#ldSteps");
+  st.classList.toggle("hidden", !adv);
+  if (adv) st.innerHTML =
+    `<span class="${s === 1 ? "on" : ""}">${esc(t("load.step_basic"))}</span>`
+    + `<span class="arr">→</span>`
+    + `<span class="${s === 2 ? "on" : ""}">${esc(t("load.step_advanced"))}</span>`;
+}
+
+$("#ldNext")?.addEventListener("click", () => { state._ldStep = 2; renderLdChrome(); });
+$("#ldBack")?.addEventListener("click", () => { state._ldStep = 1; renderLdChrome(); });
 $("#ldMode").addEventListener("change", refreshLlmOptionVisibility);
 $("#ldDevice").addEventListener("change", refreshLlmOptionVisibility);
 
@@ -811,7 +834,7 @@ async function openLoadDialog(name) {
   for (const k of LOAD_FIELDS) $(LOAD_INPUTS[k]).value = opts[k] ?? "";
   $("#ldCachePrec").value = opts.kv_cache_precision || "";
   $("#ldPrefix").checked = opts.enable_prefix_caching !== false;  // default true
-  $("#ldAdvanced").open = false;  // start compact; auto-opened for NPU in refreshLlmOptionVisibility
+  state._ldStep = 1;  // always start the wizard on the basics step
   applyLoadWarnings(opts);
   const tok = state._tokenizerTask;
   const busy = !!(tok && tok.model === model);

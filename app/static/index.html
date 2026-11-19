@@ -293,61 +293,70 @@
 <!-- load dialog -->
 <div id="loadOverlay" class="overlay hidden">
   <div class="overlay-card load-card">
-    <h2 data-i18n="load.title">モデルをロード</h2>
+    <div class="ld-head">
+      <h2 data-i18n="load.title">モデルをロード</h2>
+      <span id="ldSteps" class="steps hidden"></span>
+    </div>
     <div id="loadModelName" class="muted break"></div>
-    <div class="row"><label class="lbl" data-i18n="load.device">デバイス</label>
-      <select id="ldDevice" class="fill">
-        <option>CPU</option><option>GPU</option><option>NPU</option><option selected>AUTO</option>
-      </select>
-      <button id="btnRefreshDevices" type="button" class="btn small" data-i18n="load.refresh_devices" data-i18n-title="load.refresh_devices_title">再検出</button></div>
-    <p id="ldNpuHint" class="muted small hidden"></p>
-    <div class="row"><label class="lbl" data-i18n="load.mode">サーブモード</label>
-      <select id="ldMode" class="fill">
-        <option value="auto" data-i18n="load.mode.auto">自動判定</option>
-        <option value="text_generation" data-i18n="load.mode.text_generation">LLM（text_generation）</option>
-        <option value="image_generation" data-i18n="load.mode.image_generation">画像生成（image_generation）</option>
-        <option value="embeddings" data-i18n="load.mode.embeddings">埋め込み（embeddings）</option>
-        <option value="rerank" data-i18n="load.mode.rerank">リランク（rerank）</option>
-        <option value="text2speech" data-i18n="load.mode.text2speech">音声合成（text2speech）</option>
-        <option value="speech2text" data-i18n="load.mode.speech2text">音声認識（speech2text）</option>
-        <option value="classic" data-i18n="load.mode.classic">Classic（IR/ONNX 単体）</option>
-      </select></div>
-    <p id="ldKindHint" class="muted small hidden"></p>
-    <div id="ldLlm">
-      <details id="ldAdvanced" class="adv">
-        <summary data-i18n="load.advanced">詳細設定</summary>
-        <div class="adv-body">
-          <div class="row" id="ldMaxLenRow"><label class="lbl" data-i18n="load.max_len">最大コンテキスト長</label>
-            <input id="ldMaxLen" class="fill" type="number" min="256" step="256" data-i18n-placeholder="load.default_placeholder" placeholder="既定（モデル依存）"></div>
-          <div class="row"><label class="lbl" data-i18n="load.cache">KVキャッシュ [GB]</label>
-            <input id="ldCache" class="fill" type="number" min="0" step="1" data-i18n-placeholder="load.cache_placeholder" placeholder="既定（0=自動、実質コンテキスト上限）"></div>
-          <div class="row"><label class="lbl" data-i18n="load.seqs">同時シーケンス数</label>
-            <input id="ldSeqs" class="fill" type="number" min="1" step="1" data-i18n-placeholder="load.default_placeholder" placeholder="既定"></div>
-          <div class="row"><label class="lbl" data-i18n="load.mbt">最大バッチトークン</label>
-            <input id="ldMBT" class="fill" type="number" min="0" step="128" data-i18n-placeholder="load.default_placeholder" placeholder="既定"></div>
-          <div class="row"><label class="lbl" data-i18n="load.kv_precision">KVキャッシュ精度</label>
-            <select id="ldCachePrec" class="fill">
-              <option value="" data-i18n="load.kv_default">既定（モデル準拠）</option>
-              <option value="u8" data-i18n="load.kv_u8">u8（省メモリ）</option>
-            </select></div>
-          <div class="row"><label class="lbl" data-i18n="load.prefix">prefixキャッシュ</label>
-            <label><input id="ldPrefix" type="checkbox" checked> <span data-i18n="load.prefix_enable">有効（既定。長いプロンプトの再計算を削減）</span></label></div>
-          <p class="muted" data-i18n="load.note">これらはロード後に変更できません。</p>
-          <div class="row"><button id="ldRecommend" class="btn small" data-i18n="load.recommend">このPCの推奨値を自動入力</button>
-            <span id="ldRecommendInfo" class="muted"></span></div>
-        </div>
-      </details>
+
+    <!-- step 1: basics -->
+    <div id="ldStep1" class="ld-step">
+      <div class="row"><label class="lbl" data-i18n="load.device">デバイス</label>
+        <select id="ldDevice" class="fill">
+          <option>CPU</option><option>GPU</option><option>NPU</option><option selected>AUTO</option>
+        </select>
+        <button id="btnRefreshDevices" type="button" class="btn small" data-i18n="load.refresh_devices" data-i18n-title="load.refresh_devices_title">再検出</button></div>
+      <p id="ldNpuHint" class="muted small hidden"></p>
+      <div class="row"><label class="lbl" data-i18n="load.mode">サーブモード</label>
+        <select id="ldMode" class="fill">
+          <option value="auto" data-i18n="load.mode.auto">自動判定</option>
+          <option value="text_generation" data-i18n="load.mode.text_generation">LLM（text_generation）</option>
+          <option value="image_generation" data-i18n="load.mode.image_generation">画像生成（image_generation）</option>
+          <option value="embeddings" data-i18n="load.mode.embeddings">埋め込み（embeddings）</option>
+          <option value="rerank" data-i18n="load.mode.rerank">リランク（rerank）</option>
+          <option value="text2speech" data-i18n="load.mode.text2speech">音声合成（text2speech）</option>
+          <option value="speech2text" data-i18n="load.mode.speech2text">音声認識（speech2text）</option>
+          <option value="classic" data-i18n="load.mode.classic">Classic（IR/ONNX 単体）</option>
+        </select></div>
+      <p id="ldKindHint" class="muted small hidden"></p>
+      <p id="ldImageHint" class="muted small hidden" data-i18n="load.image_hint">画像生成モデルです。ロード後、画像パネルからプロンプトで生成できます。</p>
+      <div id="ldWarnRow" class="row hidden">
+        <p id="ldWarnings" class="warnbox fill"></p>
+        <button id="btnConvertTokenizer" class="btn small" data-i18n="load.convert_tokenizer" data-i18n-title="load.convert_tokenizer_title">トークナイザIRを変換</button>
+      </div>
+      <div id="ldConvertStatus" class="row hidden">
+        <span class="spinner"></span><span id="ldConvertMsg" class="muted small"></span>
+      </div>
     </div>
-    <p id="ldImageHint" class="muted small hidden" data-i18n="load.image_hint">画像生成モデルです。ロード後、画像パネルからプロンプトで生成できます。</p>
-    <div id="ldWarnRow" class="row hidden">
-      <p id="ldWarnings" class="warnbox fill"></p>
-      <button id="btnConvertTokenizer" class="btn small" data-i18n="load.convert_tokenizer" data-i18n-title="load.convert_tokenizer_title">トークナイザIRを変換</button>
+
+    <!-- step 2: LLM tuning (text_generation/auto only) -->
+    <div id="ldStep2" class="ld-step hidden">
+      <div class="adv-body">
+        <label class="fld"><span data-i18n="load.cache">KVキャッシュ上限 [GB]</span>
+          <input id="ldCache" type="number" min="0" step="1" data-i18n-placeholder="load.cache_placeholder" data-i18n-title="load.cache_title" placeholder="0=自動"></label>
+        <label class="fld"><span data-i18n="load.seqs">同時シーケンス数</span>
+          <input id="ldSeqs" type="number" min="1" step="1" data-i18n-placeholder="load.default_placeholder" placeholder="既定"></label>
+        <label class="fld"><span data-i18n="load.mbt">最大バッチトークン</span>
+          <input id="ldMBT" type="number" min="0" step="128" data-i18n-placeholder="load.default_placeholder" placeholder="既定"></label>
+        <label class="fld"><span data-i18n="load.kv_precision">KVキャッシュ精度</span>
+          <select id="ldCachePrec">
+            <option value="" data-i18n="load.kv_default">既定（モデル準拠）</option>
+            <option value="u8" data-i18n="load.kv_u8">u8（省メモリ）</option>
+          </select></label>
+        <label class="fld" id="ldMaxLenFld"><span data-i18n="load.max_len">最大コンテキスト長（NPU専用）</span>
+          <input id="ldMaxLen" type="number" min="256" step="256" data-i18n-placeholder="load.default_placeholder" placeholder="既定"></label>
+        <label class="fld" data-i18n-title="load.prefix_title"><span data-i18n="load.prefix">prefixキャッシュ</span>
+          <span class="chkline"><input id="ldPrefix" type="checkbox" checked><span data-i18n="load.prefix_enable">有効（既定）</span></span></label>
+        <p class="muted adv-note" data-i18n="load.note">空欄はOVMSの既定値。ロード後は変更できません。</p>
+        <div class="rec"><button id="ldRecommend" class="btn small" data-i18n="load.recommend">このPCの推奨値を自動入力</button>
+          <span id="ldRecommendInfo" class="muted"></span></div>
+      </div>
     </div>
-    <div id="ldConvertStatus" class="row hidden">
-      <span class="spinner"></span><span id="ldConvertMsg" class="muted small"></span>
-    </div>
+
     <div class="row row-end">
+      <button id="ldBack" class="btn hidden" data-i18n="common.back">戻る</button>
       <button id="ldCancel" class="btn" data-i18n="common.cancel">キャンセル</button>
+      <button id="ldNext" class="btn primary hidden" data-i18n="load.next">次へ</button>
       <button id="ldOk" class="btn primary" data-i18n="common.load">ロード</button>
     </div>
   </div>
