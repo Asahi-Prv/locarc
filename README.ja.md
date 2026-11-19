@@ -13,8 +13,8 @@
 導入からモデルのダウンロード、ロード、チャットまでを一通り操作できます。
 
 > [!NOTE]
-> **LocArc** は旧称 **Intel AI Studio** です。既存の `data` フォルダはそのまま利用できます
-> （[Intel AI Studio からの移行](#intel-ai-studio-からの移行)）。
+> **LocArc** は旧称 **Intel AI Studio** です。旧名向けの互換提供は終了しました。旧環境からの
+> 移行は [Intel AI Studio からの移行](#intel-ai-studio-からの移行) を参照してください。
 
 - **OVMSランタイムのインストール** — Stable（GitHubリリース）/ Weekly、`python_on` 版のみ。
   可能な場合は SHA-256 を検証。
@@ -240,7 +240,7 @@ JSON（`true`/`false`・数値・`[...]`・`{...}`）として解釈できるテ
 
 - ソース実行: `<プロジェクト>/data/`
 - 配布exe: `<exeのあるフォルダ>/data/`
-- 環境変数 `LOCARC_DATA` で変更可能（`AI_STUDIO_DATA` も引き続き使用可）。
+- 環境変数 `LOCARC_DATA` で変更可能。
 
 | パス | 内容 |
 | --- | --- |
@@ -334,17 +334,19 @@ python -m compileall -q app locarc.py
 
 ## Intel AI Studio からの移行
 
-データの配置は変わっていません。実行ファイルと同じフォルダの `data` をそのまま使用します。
-ポータブル版は新しいバージョンを旧フォルダに上書き展開すればデータを引き継げます。Windows
-インストーラーは Inno Setup の App ID を変更していないため、旧インストール先と `data` を
-維持したままアップグレードします。Linux では `install.sh`（および `.deb` 版のランチャーが
-初回実行時）が `~/.local/share/intel-ai-studio/data` を `~/.local/share/locarc/data` へ
-コピーします。旧環境変数 `AI_STUDIO_DATA` も `LOCARC_DATA` の別名として引き続き使用できます。
+旧名向けの互換（リリースへの旧 `Intel-AI-Studio-*` アセット同梱、旧レイアウトの更新受容、
+`AI_STUDIO_DATA` 環境変数エイリアス、Linux でのデータ自動引き継ぎ）は **26.11.1 で終了**しました。
+v1.14.x 以前のビルドは自動更新できないため、最新リリースを手動で導入してください。
 
-旧リポジトリ名（`Asahi-Prv/i-AI-Studio`）には旧 `Intel-AI-Studio-*` アセット名と旧レイアウトを
-含む互換リリースを置いているため、v1.14.x のビルドからも LocArc を自動で検出・導入できます。
-更新後の `update_repo` 設定は `Asahi-Prv/locarc` に移行されます。自動更新が表示されない場合は、
-最新リリースを一度手動で導入してください。
+- データの配置は変わっていません。実行ファイルと同じフォルダの `data` を使用します。
+- Windows: 旧環境をアンインストール → 最新のインストーラーを導入。旧フォルダの `data` は
+  アンインストールでも削除されないため、新環境の `data` としてコピーすれば引き継げます。
+- Linux: 旧 `~/.local/share/intel-ai-studio/data` を `~/.local/share/locarc/data` へコピーして
+  から `install.sh` を実行してください（`.deb` 版も同様）。
+- 設定の `update_repo` が旧リポジトリ名のままの場合、起動時に `Asahi-Prv/locarc` へ自動修正
+  されます。
+- 旧環境から更新して LocArc を使い続けている環境（旧exeや旧フォルダ名が残っている場合）では、
+  再インストールを促す通知が表示されます。
 
 ## コントリビュート
 

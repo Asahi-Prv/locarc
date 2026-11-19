@@ -65,6 +65,33 @@ def find_staged_exe(app_dir: Path) -> Path | None:
     return exe if exe.is_file() else None
 
 
+# Pre-rename (Intel AI Studio) leftovers that mark an install as carried over.
+LEGACY_DIR_STEM = "intelaistudio"  # normalized folder name: "Intel AI Studio", ...
+LEGACY_EXE = "Intel-AI-Studio.exe" if IS_WINDOWS else "Intel-AI-Studio"
+
+
+def legacy_install_markers(app_dir: Path | None = None,
+                           frozen: bool | None = None) -> list[str]:
+    """Why the running install looks carried over from Intel AI Studio.
+
+    In-place updates and installer upgrades over a pre-rename install leave the
+    old executable behind and can keep the old folder name; the UI shows a
+    reinstall notice only for those installs. Dev (non-frozen) runs never match.
+    Returns the marker names (empty = clean install).
+    """
+    if frozen is None:
+        frozen = bool(getattr(sys, "frozen", False))
+    if not frozen:
+        return []
+    exe_dir = app_dir or Path(sys.executable).resolve().parent
+    markers: list[str] = []
+    if re.sub(r"[^a-z0-9]", "", exe_dir.name.lower()) == LEGACY_DIR_STEM:
+        markers.append("dir")
+    if (exe_dir / LEGACY_EXE).is_file():
+        markers.append("exe")
+    return markers
+
+
 def repo() -> str:
     """The release repository (``load_config`` rewrites pre-rename values)."""
     return str(load_config().get("update_repo") or DEFAULT_REPO)

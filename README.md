@@ -15,8 +15,8 @@
 It manages the whole lifecycle in a native WebView2 window:
 
 > [!NOTE]
-> **LocArc** was previously called **Intel AI Studio**. Existing `data` folders keep working;
-> see [Upgrading from Intel AI Studio](#upgrading-from-intel-ai-studio).
+> **LocArc** was previously called **Intel AI Studio**. Compatibility with pre-rename installs
+> has ended; see [Upgrading from Intel AI Studio](#upgrading-from-intel-ai-studio).
 
 - **Install OVMS runtimes** – stable (GitHub releases) or weekly builds, `python_on` packages only,
   with SHA-256 verification when available.
@@ -249,7 +249,7 @@ All state lives in one data directory:
 
 - Source checkout: `<project>/data/`
 - Packaged exe: `<folder of exe>/data/`
-- Override with the `LOCARC_DATA` environment variable (`AI_STUDIO_DATA` is still accepted).
+- Override with the `LOCARC_DATA` environment variable.
 
 | Path | Contents |
 | --- | --- |
@@ -343,17 +343,21 @@ install the newer package to upgrade.
 
 ## Upgrading from Intel AI Studio
 
-The data layout has not changed: the app still uses the `data` folder next to the executable.
-Portable builds keep using it when you extract the new version over the old folder. The Windows
-installer keeps the previous installation folder and its `data` when upgrading (the Inno Setup
-App ID is unchanged). On Linux, `install.sh` (and the `.deb` launcher on first run) copies
-`~/.local/share/intel-ai-studio/data` to `~/.local/share/locarc/data`. The old `AI_STUDIO_DATA`
-environment variable is still accepted as an alias for `LOCARC_DATA`.
+Compatibility for the old name (shipping legacy `Intel-AI-Studio-*` assets with releases,
+accepting the old app layout, the `AI_STUDIO_DATA` environment-variable alias, and the automatic
+Linux data carry-over) **ended in 26.11.1**. Builds from v1.14.x or older cannot update
+themselves; install the latest release manually.
 
-The old repository name (`Asahi-Prv/i-AI-Studio`) hosts a compatibility release with the legacy
-`Intel-AI-Studio-*` asset names and app layout, so v1.14.x builds can still find and install
-LocArc automatically. Their stored `update_repo` setting is then migrated to `Asahi-Prv/locarc`.
-If an older build does not offer the update, download the latest release manually once.
+- The data layout has not changed: the app uses the `data` folder next to the executable.
+- Windows: uninstall the old installation, then run the latest installer. The old folder's
+  `data` survives the uninstall — copy it into the new install's `data` to carry models, chats
+  and settings over.
+- Linux: copy `~/.local/share/intel-ai-studio/data` to `~/.local/share/locarc/data` before
+  running `install.sh` (the `.deb` behaves the same).
+- A stored `update_repo` value naming the pre-rename repository is rewritten to
+  `Asahi-Prv/locarc` at startup.
+- Installs that were updated in place from Intel AI Studio (the pre-rename executable or folder
+  name is still present) show a notice asking to reinstall cleanly.
 
 ## Contributing
 

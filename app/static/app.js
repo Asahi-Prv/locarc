@@ -174,7 +174,13 @@ async function loadConfig() {
   $("#cfgGraphCache").checked = state.cfg.graph_cache !== false;
   $("#cfgDataDir").textContent = state.cfg.data_dir || "-";
   $("#cfgModelsDir").textContent = state.cfg.models_dir || "-";
+  // carried-over Intel AI Studio installs (pre-rename exe/folder) get a reinstall notice
+  $("#legacyBanner").classList.toggle("hidden", !state.cfg.legacy_install);
 }
+
+$("#btnLegacyDismiss").addEventListener("click", () => {
+  $("#legacyBanner").classList.add("hidden");
+});
 
 $("#btnClearToken").addEventListener("click", () => {
   $("#cfgToken").value = ""; $("#cfgToken").dataset.forceClear = "1";

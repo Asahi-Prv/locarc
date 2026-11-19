@@ -837,6 +837,25 @@ def test_update_script_mirrors_internal(tmp_path):
     assert "Intel-AI-Studio" not in text         # no legacy exe handling anymore
 
 
+def test_legacy_install_markers(tmp_path):
+    from app import updater
+    # dev (non-frozen) runs never match, whatever the paths look like
+    assert updater.legacy_install_markers(frozen=False,
+                                          app_dir=tmp_path / "Intel AI Studio") == []
+    # frozen + clean folder: no markers
+    clean = tmp_path / "LocArc"
+    clean.mkdir()
+    assert updater.legacy_install_markers(frozen=True, app_dir=clean) == []
+    # pre-rename executable left by an in-place update
+    (clean / updater.LEGACY_EXE).write_bytes(b"")
+    assert updater.legacy_install_markers(frozen=True, app_dir=clean) == ["exe"]
+    # the old folder name (any pre-rename spelling) also marks the install
+    assert updater.legacy_install_markers(frozen=True,
+                                          app_dir=tmp_path / "Intel AI Studio") == ["dir"]
+    assert updater.legacy_install_markers(frozen=True,
+                                          app_dir=tmp_path / "Intel-AI-Studio") == ["dir"]
+
+
 def test_free_ram_detection_is_positive():
     from app.main import _free_ram_gb
     assert _free_ram_gb() > 0

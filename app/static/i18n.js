@@ -232,6 +232,9 @@ const I18N = {
 
     "settings.update_title": "Updates",
     "settings.update_auto": "Check for updates on startup",
+    "legacy.banner": "This installation was carried over from <b>Intel AI Studio</b>. Compatibility with pre-rename installs has ended — please uninstall it and install the latest LocArc. Models, chats and settings live in the app folder's <code>data</code> folder; copy it over if the new install starts empty.",
+    "legacy.reinstall": "Get the latest LocArc",
+    "common.close": "Close",
     "settings.graph_cache": "Cache compiled models (faster loads)",
     "settings.graph_cache_note": "Passes <code>--cache_dir</code> to OVMS on every load so compiled models persist in <code>data/ov_cache</code>, one blob per device and model. Helps most on NPU/GPU. The first load — and the first load after a driver update or a load-option change — recompiles.",
     "settings.update_check": "Check for updates",
@@ -566,6 +569,9 @@ const I18N = {
 
     "settings.update_title": "アップデート",
     "settings.update_auto": "起動時に更新を確認する",
+    "legacy.banner": "この環境は旧「Intel AI Studio」から引き継がれたものです。旧名向けの互換提供は終了しました。アンインストールのうえ、最新の LocArc をインストールし直してください。モデル・チャット・設定はアプリフォルダの <code>data</code> フォルダにあるため、新規インストールで引き継がれない場合はコピーしてください。",
+    "legacy.reinstall": "最新のLocArcを入手",
+    "common.close": "閉じる",
     "settings.graph_cache": "コンパイル済みモデルをキャッシュする（ロード高速化）",
     "settings.graph_cache_note": "OVMSへ <code>--cache_dir</code> を渡し、コンパイル済みモデルを <code>data/ov_cache</code> にデバイス・モデル別に保存します。特にNPU/GPUで効果的。初回ロード、ドライバ更新後、ロード設定変更後は再コンパイルされます。",
     "settings.update_check": "更新を確認",
