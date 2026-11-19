@@ -17,7 +17,7 @@
 
 [Setup]
 ; Keep this AppId stable: it is how Inno Setup recognizes and upgrades an
-; existing Intel AI Studio installation (including its data folder).
+; existing LocArc installation (including its data folder).
 AppId={{3F1C7A64-9B2E-4D5A-8E31-6C0B7D4F2A19}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -45,6 +45,10 @@ MinVersion=10.0
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+
+[InstallDelete]
+; Drop the pre-rename executable that in-place Intel AI Studio upgrades left behind.
+Type: files; Name: "{app}\Intel-AI-Studio.exe"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

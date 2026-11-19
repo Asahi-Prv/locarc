@@ -35,16 +35,9 @@ from .procutil import subprocess_flags
 
 IS_WINDOWS = os.name == "nt"
 DEFAULT_REPO = "Asahi-Prv/locarc"
-# Repository names used before the LocArc rename. They are kept in the URL
-# allow-list so a release can be published while GitHub redirects the old name.
-LEGACY_REPOS = ("Asahi-Prv/i-AI-Studio",)
 WINDOWS_ASSET = "LocArc-windows-x64.zip"
 LINUX_ASSET = "LocArc-linux-x64.tar.gz"
-LEGACY_WINDOWS_ASSET = "Intel-AI-Studio-windows-x64.zip"
-LEGACY_LINUX_ASSET = "Intel-AI-Studio-linux-x64.tar.gz"
 APP_DIR_NAME = "LocArc"
-LEGACY_APP_DIR_NAME = "Intel-AI-Studio"
-LEGACY_EXE_NAME = "Intel-AI-Studio.exe" if IS_WINDOWS else "Intel-AI-Studio"
 CHECKSUMS_NAME = "SHA256SUMS.txt"
 CHECK_TTL = 24 * 3600
 _UA = {"User-Agent": "locarc", "Accept": "application/vnd.github+json"}
@@ -55,54 +48,31 @@ def asset_name() -> str:
     return WINDOWS_ASSET if IS_WINDOWS else LINUX_ASSET
 
 
-def legacy_asset_name() -> str:
-    """Pre-rename release asset name, used as a fallback for one release."""
-    return LEGACY_WINDOWS_ASSET if IS_WINDOWS else LEGACY_LINUX_ASSET
-
-
 def exe_name() -> str:
     """Executable name inside the packaged app folder for the running platform."""
     return "LocArc.exe" if IS_WINDOWS else "LocArc"
 
 
-def legacy_exe_name() -> str:
-    """Pre-rename executable name, still accepted inside staging folders."""
-    return LEGACY_EXE_NAME
-
-
 def find_staged_app(staged_parent: Path) -> Path | None:
-    """Return the app folder inside an extracted archive (new or legacy layout)."""
-    for name in (APP_DIR_NAME, LEGACY_APP_DIR_NAME):
-        candidate = staged_parent / name
-        if candidate.is_dir():
-            return candidate
-    return None
+    """Return the app folder inside an extracted archive."""
+    candidate = staged_parent / APP_DIR_NAME
+    return candidate if candidate.is_dir() else None
 
 
 def find_staged_exe(app_dir: Path) -> Path | None:
-    """Return the executable inside a staged app folder (new or legacy name)."""
-    for name in (exe_name(), legacy_exe_name()):
-        candidate = app_dir / name
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-# Backwards-compatible alias (Windows asset); prefer ``asset_name()``.
-ASSET_NAME = WINDOWS_ASSET
+    """Return the executable inside a staged app folder."""
+    exe = app_dir / exe_name()
+    return exe if exe.is_file() else None
 
 
 def repo() -> str:
-    value = str(load_config().get("update_repo") or DEFAULT_REPO)
-    # Configs written before the rename contain the old repository name. Treat
-    # it as the current default so those installations keep seeing releases
-    # instead of being pinned to the compatibility repository.
-    return DEFAULT_REPO if value in LEGACY_REPOS else value
+    """The release repository (``load_config`` rewrites pre-rename values)."""
+    return str(load_config().get("update_repo") or DEFAULT_REPO)
 
 
 def allowed_repos() -> set[str]:
-    """Repositories whose release downloads may be used (including the old name)."""
-    return {repo(), DEFAULT_REPO, *LEGACY_REPOS}
+    """Repositories whose release downloads may be used."""
+    return {repo(), DEFAULT_REPO}
 
 
 def can_self_update() -> bool:
@@ -167,11 +137,7 @@ def check_for_update(force: bool = False, lang: str | None = None) -> dict:
     tag = str(release.get("tag_name") or "")
     latest = tag.lstrip("v")
     assets = {a.get("name"): a for a in release.get("assets") or []}
-    # New releases publish the LocArc names; the legacy names are accepted for
-    # one transition release (and for clients that still ask for them).
-    asset = next((name for name in (asset_name(), legacy_asset_name()) if name in assets),
-                 asset_name())
-    zip_asset = assets.get(asset) or {}
+    zip_asset = assets.get(asset_name()) or {}
     sums_asset = assets.get(CHECKSUMS_NAME) or {}
     info = {
         "current": APP_VERSION,
@@ -182,7 +148,7 @@ def check_for_update(force: bool = False, lang: str | None = None) -> dict:
         "name": release.get("name") or tag,
         "published_at": release.get("published_at") or "",
         "notes": (release.get("body") or "")[:4000],
-        "asset_name": zip_asset.get("name") or asset,
+        "asset_name": zip_asset.get("name") or asset_name(),
         "asset_url": zip_asset.get("browser_download_url") or "",
         "asset_size": int(zip_asset.get("size") or 0),
         "checksums_url": sums_asset.get("browser_download_url") or "",
@@ -236,12 +202,9 @@ def write_update_script(staged_app_dir: Path, app_dir: Path, running_exe: str,
 
     The script waits until the running executable is no longer locked. Waiting on
     the process id alone is not reliable because Windows reuses PIDs. ``_internal``
-    is mirrored so files from older versions disappear, and both executable names
-    are refreshed from the new build before restarting.
+    is mirrored so files from older versions disappear.
     """
     exe_path = app_dir / running_exe
-    staged_exe = next((name for name in (exe_name(), legacy_exe_name())
-                       if (staged_app_dir / name).is_file()), None)
     lines = [
         "$ErrorActionPreference = 'SilentlyContinue'\n",
         "# Wait until the app's executable is no longer locked (PID-reuse safe).\n",
@@ -262,17 +225,6 @@ def write_update_script(staged_app_dir: Path, app_dir: Path, running_exe: str,
             f"robocopy {_ps_quote(staged_internal)} {_ps_quote(app_dir / '_internal')} "
             "/MIR /NFL /NDL /NJH /NJS /R:10 /W:1 | Out-Null\n"
         )
-    if staged_exe:
-        new_exe = app_dir / staged_exe
-        legacy_path = app_dir / legacy_exe_name()
-        lines.append("# Keep the executables in sync so any shortcut starts this build.\n")
-        lines.append(f"$new = {_ps_quote(new_exe)}\n")
-        lines.append("if ($exe -ne $new) { Copy-Item -LiteralPath $new -Destination $exe -Force }\n")
-        if staged_exe != legacy_exe_name():
-            lines.append(
-                f"if (Test-Path -LiteralPath {_ps_quote(legacy_path)}) "
-                f"{{ Copy-Item -LiteralPath $new -Destination {_ps_quote(legacy_path)} -Force }}\n"
-            )
     lines += [
         f"Start-Process -FilePath $exe -WorkingDirectory {_ps_quote(app_dir)}\n",
         "Start-Sleep -Milliseconds 500\n",
@@ -291,13 +243,9 @@ def write_update_script_posix(staged_app_dir: Path, app_dir: Path, running_exe: 
     """Write the detached POSIX updater script (Linux/macOS).
 
     The script waits until this process exits (``kill -0``), replaces the app
-    files in place, keeps the running and pre-rename executable names in sync
-    with the new build, relaunches the executable detached from the shell, and
-    then removes the staging directory and itself.
+    files in place, relaunches the executable detached from the shell, and then
+    removes the staging directory and itself.
     """
-    staged_exe = next((name for name in (exe_name(), legacy_exe_name())
-                       if (staged_app_dir / name).is_file()), None) or running_exe
-    legacy = legacy_exe_name()
     script_path.write_text(
         "#!/bin/sh\n"
         "set -u\n"
@@ -305,7 +253,6 @@ def write_update_script_posix(staged_app_dir: Path, app_dir: Path, running_exe: 
         f"STAGED={_sh_quote(staged_app_dir)}\n"
         f"APPDIR={_sh_quote(app_dir)}\n"
         f"EXE={_sh_quote(running_exe)}\n"
-        f"STAGED_EXE={_sh_quote(staged_exe)}\n"
         f"BASE={_sh_quote(base_dir)}\n"
         "# Wait for the running app to exit (PID reuse within the timeout is unlikely).\n"
         "i=0\n"
@@ -318,13 +265,6 @@ def write_update_script_posix(staged_app_dir: Path, app_dir: Path, running_exe: 
         "# Replace the app files, keeping the user's 'data' folder intact.\n"
         "rm -rf \"$APPDIR/_internal\"\n"
         "cp -a \"$STAGED\"/. \"$APPDIR\"/\n"
-        "# Keep the executables in sync so any shortcut starts this build.\n"
-        "if [ -f \"$APPDIR/$STAGED_EXE\" ]; then\n"
-        "    if [ \"$EXE\" != \"$STAGED_EXE\" ]; then cp -f \"$APPDIR/$STAGED_EXE\" \"$APPDIR/$EXE\"; fi\n"
-        f"    if [ -f \"$APPDIR/{legacy}\" ] && [ \"$STAGED_EXE\" != {_sh_quote(legacy)} ]; then\n"
-        f"        cp -f \"$APPDIR/$STAGED_EXE\" \"$APPDIR/{legacy}\"\n"
-        "    fi\n"
-        "fi\n"
         "# Restart detached so the update outlives this script and its terminal.\n"
         "if command -v setsid >/dev/null 2>&1; then\n"
         "    setsid \"$APPDIR/$EXE\" >/dev/null 2>&1 &\n"

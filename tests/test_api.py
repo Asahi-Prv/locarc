@@ -636,28 +636,26 @@ def test_update_checksum_parsing():
 
 def test_update_url_allowlist(monkeypatch):
     from app import updater
-    # An existing config may still point at the pre-rename repository.
-    monkeypatch.setattr(updater, "repo", lambda: "Asahi-Prv/i-AI-Studio")
+    monkeypatch.setattr(updater, "repo", lambda: "someone/fork")
     assert updater.is_allowed_url(
         "https://github.com/Asahi-Prv/locarc/releases/download/v2.0.0/LocArc-windows-x64.zip")
     assert updater.is_allowed_url(
+        "https://github.com/someone/fork/releases/download/v1.0/LocArc-windows-x64.zip")
+    assert not updater.is_allowed_url(
         "https://github.com/Asahi-Prv/i-AI-Studio/releases/download/v1.14.2/Intel-AI-Studio-windows-x64.zip")
     assert not updater.is_allowed_url("https://evil.example.com/x.zip")
     assert not updater.is_allowed_url("")
 
 
-def test_update_repo_migrates_legacy_config(monkeypatch):
-    from app import updater
+def test_update_repo_migrates_legacy_config():
+    import json as _json
     # config.json written before the rename contains the old repository name.
-    monkeypatch.setattr(updater, "load_config",
-                        lambda: {"update_repo": "Asahi-Prv/i-AI-Studio"})
-    assert updater.repo() == "Asahi-Prv/locarc"
+    reset_config()
+    CONFIG_PATH.write_text(_json.dumps({"update_repo": "Asahi-Prv/i-AI-Studio"}), encoding="utf-8")
+    assert load_config()["update_repo"] == "Asahi-Prv/locarc"
     # Other custom repositories are left alone.
-    monkeypatch.setattr(updater, "load_config",
-                        lambda: {"update_repo": "someone/fork"})
-    assert updater.repo() == "someone/fork"
-    monkeypatch.setattr(updater, "load_config", lambda: {})
-    assert updater.repo() == "Asahi-Prv/locarc"
+    CONFIG_PATH.write_text(_json.dumps({"update_repo": "someone/fork"}), encoding="utf-8")
+    assert load_config()["update_repo"] == "someone/fork"
 
 
 def test_update_check_endpoint(monkeypatch):
@@ -792,28 +790,21 @@ def test_update_asset_names_by_platform():
     if os.name == "nt":
         assert updater.asset_name() == "LocArc-windows-x64.zip"
         assert updater.exe_name() == "LocArc.exe"
-        assert updater.legacy_asset_name() == "Intel-AI-Studio-windows-x64.zip"
-        assert updater.legacy_exe_name() == "Intel-AI-Studio.exe"
     else:
         assert updater.asset_name() == "LocArc-linux-x64.tar.gz"
         assert updater.exe_name() == "LocArc"
-        assert updater.legacy_asset_name() == "Intel-AI-Studio-linux-x64.tar.gz"
-        assert updater.legacy_exe_name() == "Intel-AI-Studio"
 
 
-def test_update_staging_accepts_legacy_layout(tmp_path):
+def test_update_staging_finds_app_folder(tmp_path):
     from app import updater
-    legacy = tmp_path / "Intel-AI-Studio"
-    legacy.mkdir()
-    (legacy / updater.legacy_exe_name()).write_bytes(b"")
-    assert updater.find_staged_app(tmp_path) == legacy
-    assert updater.find_staged_exe(legacy).name == updater.legacy_exe_name()
-
     current = tmp_path / "LocArc"
     current.mkdir()
     (current / updater.exe_name()).write_bytes(b"")
     assert updater.find_staged_app(tmp_path) == current
     assert updater.find_staged_exe(current).name == updater.exe_name()
+    # unknown layouts are rejected
+    (tmp_path / "Other").mkdir()
+    assert updater.find_staged_app(tmp_path) == current
 
 
 def test_update_script_posix(tmp_path):
@@ -831,7 +822,7 @@ def test_update_script_posix(tmp_path):
         assert script.stat().st_mode & stat.S_IXUSR  # executable
 
 
-def test_update_script_mirrors_internal_and_syncs_exe_names(tmp_path):
+def test_update_script_mirrors_internal(tmp_path):
     from app import updater
     from app.updater import write_update_script
     staged = tmp_path / "staged"
@@ -839,31 +830,11 @@ def test_update_script_mirrors_internal_and_syncs_exe_names(tmp_path):
     (staged / updater.exe_name()).write_bytes(b"new")
     app = tmp_path / "app"
     app.mkdir()
-    (app / updater.LEGACY_EXE_NAME).write_bytes(b"old")
     script = tmp_path / "apply.ps1"
-    write_update_script(staged, app, updater.LEGACY_EXE_NAME, tmp_path / "updates" / "v1", script)
+    write_update_script(staged, app, updater.exe_name(), tmp_path / "updates" / "v1", script)
     text = script.read_text(encoding="utf-8")
     assert "/MIR" in text                        # stale runtime files are removed
-    assert "$exe -ne $new" in text               # the restarted exe is the new copy
-    assert updater.LEGACY_EXE_NAME in text       # the pre-rename name is refreshed too
-
-
-def test_update_script_posix_syncs_exe_names(tmp_path):
-    from app import updater
-    from app.updater import write_update_script_posix
-    staged = tmp_path / "staged"
-    staged.mkdir()
-    (staged / updater.exe_name()).write_bytes(b"new")
-    app = tmp_path / "app"
-    app.mkdir()
-    (app / updater.LEGACY_EXE_NAME).write_bytes(b"old")
-    script = tmp_path / "apply.sh"
-    write_update_script_posix(staged, app, updater.LEGACY_EXE_NAME,
-                              tmp_path / "updates" / "v1", script, 4321)
-    text = script.read_text(encoding="utf-8")
-    assert "STAGED_EXE" in text
-    assert "cp -f" in text                       # syncs the running/lib exec names
-    assert updater.LEGACY_EXE_NAME in text
+    assert "Intel-AI-Studio" not in text         # no legacy exe handling anymore
 
 
 def test_free_ram_detection_is_positive():

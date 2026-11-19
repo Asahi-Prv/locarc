@@ -21,10 +21,7 @@ def _base_dir() -> Path:
 
 
 BASE_DIR = _base_dir()
-# ``AI_STUDIO_DATA`` is the pre-rename name; keep accepting it so existing
-# installations and scripts keep working.
-DATA_DIR = Path(os.environ.get("LOCARC_DATA") or os.environ.get("AI_STUDIO_DATA")
-                or str(BASE_DIR / "data")).resolve()
+DATA_DIR = Path(os.environ.get("LOCARC_DATA") or str(BASE_DIR / "data")).resolve()
 MODELS_DIR = DATA_DIR / "models"        # downloaded models (one folder per model)
 RUNTIMES_DIR = DATA_DIR / "runtimes"    # installed ovms builds
 CONFIG_PATH = DATA_DIR / "config.json"
@@ -118,6 +115,10 @@ def load_config() -> dict:
             raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))  # tolerate BOM
             if "graph_cache" not in raw and "npu_graph_cache" in raw:
                 raw["graph_cache"] = raw["npu_graph_cache"]  # v2.6 wrote an NPU-only key
+            if raw.get("update_repo") == "Asahi-Prv/i-AI-Studio":
+                # default repository before the LocArc rename; update checks go
+                # through the current name from now on
+                raw["update_repo"] = "Asahi-Prv/locarc"
             cfg.update(raw)
         except Exception:
             pass

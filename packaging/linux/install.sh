@@ -17,7 +17,6 @@ SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 INSTALL_DIR="$DATA_HOME/$APP_ID"
-LEGACY_DIR="$DATA_HOME/intel-ai-studio"
 BIN_DIR="$HOME/.local/bin"
 APPS_DIR="$DATA_HOME/applications"
 
@@ -30,13 +29,6 @@ fi
 echo "Installing $APP_NAME to $INSTALL_DIR ..."
 mkdir -p "$INSTALL_DIR"
 cp -a "$SRC_DIR"/. "$INSTALL_DIR"/
-
-# Carry over data from a pre-rename Intel AI Studio installation. The old
-# folder is left untouched so users can verify the migration before deleting it.
-if [ -d "$LEGACY_DIR/data" ] && [ ! -e "$INSTALL_DIR/data" ]; then
-  cp -a "$LEGACY_DIR/data" "$INSTALL_DIR/data"
-  echo "  Migrated data from $LEGACY_DIR/data"
-fi
 
 # Command-line launcher.
 mkdir -p "$BIN_DIR"
@@ -59,11 +51,6 @@ else
   echo "  Note: for a native window install WebKitGTK:"
   echo "        sudo apt install python3-gi gir1.2-webkit2-4.1"
   echo "        (without it the app opens in your browser)"
-fi
-
-if [ -d "$LEGACY_DIR" ]; then
-  echo "  Note: the previous Intel AI Studio install is still in $LEGACY_DIR."
-  echo "        Its data was copied to $INSTALL_DIR/data; remove the old folder when ready."
 fi
 
 echo "Done."

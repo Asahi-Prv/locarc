@@ -38,13 +38,6 @@ jobs:
         run: ./scripts/smoke-test.ps1 -Exe "dist/LocArc/LocArc.exe"
       - name: Package portable build
         run: Compress-Archive -Path dist/LocArc -DestinationPath LocArc-windows-x64.zip
-      - name: Package compatibility build for pre-rename updaters
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path compat\Intel-AI-Studio | Out-Null
-          Copy-Item -Recurse -Force dist\LocArc\* compat\Intel-AI-Studio\
-          Copy-Item compat\Intel-AI-Studio\LocArc.exe compat\Intel-AI-Studio\Intel-AI-Studio.exe
-          Compress-Archive -Path compat\Intel-AI-Studio -DestinationPath Intel-AI-Studio-windows-x64.zip
       - name: Build installer (Inno Setup)
         shell: pwsh
         run: |
@@ -60,7 +53,6 @@ jobs:
           name: windows
           path: |
             LocArc-windows-x64.zip
-            Intel-AI-Studio-windows-x64.zip
             dist/LocArc-Setup-x64.exe
 
   linux:
@@ -97,12 +89,6 @@ jobs:
         run: bash scripts/smoke-test.sh dist/LocArc/LocArc
       - name: Package portable build
         run: tar -C dist -czf LocArc-linux-x64.tar.gz LocArc
-      - name: Package compatibility build for pre-rename updaters
-        run: |
-          mkdir -p compat/Intel-AI-Studio
-          cp -a dist/LocArc/. compat/Intel-AI-Studio/
-          cp compat/Intel-AI-Studio/LocArc compat/Intel-AI-Studio/Intel-AI-Studio
-          tar -C compat -czf Intel-AI-Studio-linux-x64.tar.gz Intel-AI-Studio
       - name: Build .deb package
         run: |
           version="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' app/version.py)"
@@ -119,7 +105,6 @@ jobs:
           path: |
             LocArc-linux-x64.tar.gz
             LocArc-linux-x64.deb
-            Intel-AI-Studio-linux-x64.tar.gz
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
