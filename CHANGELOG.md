@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-11-19
+
+### Added
+
+- NPU graph cache: a new Settings checkbox (on by default) passes `--cache_dir` to OVMS whenever a
+  model is loaded on NPU, so compiled NPU graphs persist in `data/ov_cache`. Reloads import the
+  cached blob instead of recompiling, which dominates NPU load time (a recompile happens once after
+  an NPU driver update or a load-option change). Loads on other devices are unaffected, and the
+  flag is skipped automatically for OVMS builds without `--cache_dir`.
+
+### Changed
+
+- The load dialog is a two-step wizard now: step 1 holds the basics (device, serve mode, hints and
+  warnings), step 2 holds the LLM tuning options (KV cache size, sequences, batched tokens, KV
+  precision, context length, prefix caching and the recommendation button) in a compact grid. The
+  tuning step only appears for LLM/auto modes, and the NPU-only context length field only for NPU.
+
 ## [2.5.1] - 2026-11-15
 
 ### Changed
