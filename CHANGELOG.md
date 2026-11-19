@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Calendar Versioning](https://calver.org/) (`YY.MM.MICRO`).
 
+## [26.11.1] - 2026-11-20
+
+### Removed
+
+- Intel AI Studio compatibility, three weeks after the LocArc rename: releases no longer ship the
+  legacy `Intel-AI-Studio-*` assets (this is what let pre-rename v1.14.x builds self-update), the
+  updater no longer accepts the legacy repository/asset/folder/executable names, the
+  `AI_STUDIO_DATA` environment variable alias is gone, and the Linux installer no longer carries
+  data over from `~/.local/share/intel-ai-studio`. Installs on v1.14.x or older must install the
+  latest release manually; a stored `update_repo` naming the pre-rename repository is rewritten to
+  `Asahi-Prv/locarc` at startup.
+
+### Added
+
+- A reinstall notice shown only to installs carried over from Intel AI Studio — detected via the
+  pre-rename executable or folder name left by in-place updates — asking to uninstall and install
+  the latest LocArc (models, chats and settings can be carried over via the `data` folder).
+
+### Changed
+
+- The Windows installer deletes the pre-rename `Intel-AI-Studio.exe` from the installation folder
+  on upgrade.
+
 ## [26.11.0] - 2026-11-19
 
 ### Changed
