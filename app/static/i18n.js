@@ -12,6 +12,10 @@ const I18N = {
     "nav.stats": "Statistics",
     "nav.settings": "Settings",
     "nav.switch_lang": "日本語に切り替え",
+    "nav.theme_system": "System",
+    "nav.theme_light": "Light",
+    "nav.theme_dark": "Dark",
+    "nav.theme_title": "Theme: System → Light → Dark",
 
     "common.refresh": "Refresh",
     "common.delete": "Delete",
@@ -349,6 +353,10 @@ const I18N = {
     "nav.stats": "利用統計",
     "nav.settings": "設定",
     "nav.switch_lang": "Switch to English",
+    "nav.theme_system": "システム",
+    "nav.theme_light": "ライト",
+    "nav.theme_dark": "ダーク",
+    "nav.theme_title": "テーマ: システム → ライト → ダーク",
 
     "common.refresh": "更新",
     "common.delete": "削除",

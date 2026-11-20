@@ -3,6 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* Apply the saved theme (system/light/dark) before first paint to avoid a flash. */
+(function () {
+  var mode = localStorage.getItem("theme");
+  if (mode !== "light" && mode !== "dark") mode = "system";
+  var dark = mode === "dark" ||
+    (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+})();
+</script>
 <title data-i18n="app.name">LocArc</title>
 <link rel="stylesheet" href="/style.css">
 </head>
@@ -27,6 +37,10 @@
       <button class="tabbtn" data-view="stats" data-i18n="nav.stats">利用統計</button>
       <button class="tabbtn" data-view="settings"><span data-i18n="nav.settings">設定</span><span id="settingsDot" class="dot hidden"></span></button>
       <div class="sidefoot">
+        <button id="btnTheme" class="btn small ghost" data-i18n-title="nav.theme_title">
+          <svg viewBox="0 0 24 24" aria-hidden="true"></svg>
+          <span id="themeLabel"></span>
+        </button>
         <button id="btnLang" class="btn small ghost" data-i18n-title="nav.switch_lang">English</button>
       </div>
     </div>

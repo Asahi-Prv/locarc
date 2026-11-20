@@ -64,6 +64,42 @@ if (langBtn) {
   langBtn.addEventListener("click", () => setLang(LANG === "ja" ? "en" : "ja"));
 }
 
+// ------------------------------------------------------------ theme switch
+
+const THEME_ORDER = ["system", "light", "dark"];
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+const themeBtn = $("#btnTheme");
+let themeMode = localStorage.getItem("theme");
+if (!THEME_ORDER.includes(themeMode)) themeMode = "system";
+
+const THEME_ICON = {
+  system: '<path fill-rule="evenodd" d="M2 4h20v12H2V4zm2 2v8h16V6H4z"/><path d="M8 18h8v2H8z"/>',
+  light: '<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM11 1h2v4h-2zm0 18h2v4h-2zM1 11h4v2H1zm18 0h4v2h-4z"/>',
+  dark: '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>',
+};
+
+function applyTheme(mode) {
+  themeMode = mode;
+  const dark = mode === "dark" || (mode === "system" && darkQuery.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  if (themeBtn) {
+    themeBtn.querySelector("svg").innerHTML = THEME_ICON[mode];
+    $("#themeLabel").textContent = t(`nav.theme_${mode}`);
+  }
+}
+
+if (themeBtn) {
+  themeBtn.addEventListener("click", () => {
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(themeMode) + 1) % THEME_ORDER.length];
+    localStorage.setItem("theme", next);
+    applyTheme(next);
+  });
+  darkQuery.addEventListener("change", () => {
+    if (themeMode === "system") applyTheme("system");  // follow OS theme live
+  });
+  applyTheme(themeMode);
+}
+
 // ------------------------------------------------------------ modal dialog
 
 function confirmDlg(message, okLabel) {
