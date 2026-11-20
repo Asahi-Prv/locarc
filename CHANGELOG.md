@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Calendar Versioning](https://calver.org/) (`YY.MM.MICRO`).
 
+## [26.11.2] - 2026-11-20
+
+### Added
+
+- Dark mode: the UI now has a light (paper) and a dark (charcoal) variant. A new sidebar button next
+  to the language switch cycles System → Light → Dark, where System follows the OS theme live. The
+  choice is remembered per browser and applied before first paint (no white flash on startup in dark
+  mode).
+
 ## [26.11.1] - 2026-11-20
 
 ### Removed
